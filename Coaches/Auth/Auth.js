@@ -9,13 +9,16 @@ const enu = require("../../essentials/enu");
 const Languages = require("../../Database/app/Languages.js");
 const Connection = require("../../Database/connection/Connections.js");
 const Numbers = require("../../Database/app/Numbers.js");
-const multer = require("multer");
+// const multer = require("multer");
+// const path = require("path");
 const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 
 const twilio = require("twilio");
 
 const accountSid = "ACc86102fc09260ed1cc341237ddfa2aeb";
-const authToken = "56f6d1015cfee877def7f1b1987417ca";
+const authToken = "59a90ca1dcaf5d17b51e54efd728bb46";
 const verifySid = "VA4a0b9a2e84100362aaf4781ec8faf191";
 const client = twilio(accountSid, authToken);
 
@@ -26,12 +29,25 @@ async function send_otp(phone) {
 }
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "treasure/"); // ensure this folder exists
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, "treasure");
+
+    // Auto-create the folder if missing
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+
+    cb(null, uploadPath);
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "certificate_" + getId(12) + path.extname(file.originalname));
+  filename: function (req, file, cb) {
+    console.log("Saving file:", file.originalname, "->", file.mimetype);
+    const uniqueName =
+      "certificate_" +
+      Date.now() +
+      "_" +
+      Math.round(Math.random() * 1e9) +
+      path.extname(file.originalname);
+    cb(null, uniqueName);
   },
 });
 
@@ -253,7 +269,11 @@ auth.post("/otp", async (req, res) => {
     otpId: decrypt(otpId),
   }).then(async (coach_data) => {
     if (coach_data == undefined) {
-      res.send({ server: true, res: false, alert: "Something went wrong" });
+      res.send({
+        server: true,
+        res: false,
+        alert: "Something went wrong",
+      });
     } else {
       const verificationCheck = await client.verify.v2
         .services(verifySid)
@@ -493,26 +513,35 @@ auth.post("/get-sub-connections", async (req, res) => {
   }
 });
 
-auth.post("/save-certificates", upload.array("images", 10), (req, res) => {
-  CoachUnverified.findOne({
-    token: decrypt(req.headers["authorization"]),
-  }).then((coach_data) => {
-    if (coach_data == null) {
-      res.send({ server: true, res: false });
-    } else {
-      let all_certi = [];
-      req.files.map((item) => {
-        all_certi.push(item.filename);
+auth.post(
+  "/save-certificates",
+  upload.array("images", 10),
+  async (req, res) => {
+    try {
+      const token = decrypt(req.headers["authorization"]);
+      const coach_data = await CoachUnverified.findOne({ token });
+
+      if (!coach_data) {
+        return res
+          .status(401)
+          .send({ server: true, res: false, message: "Unauthorized" });
+      }
+
+      console.log("Received files:", req.files);
+
+      const all_certi = req.files.map((item) => item.filename);
+
+      await CoachUnverified.findByIdAndUpdate(coach_data._id, {
+        $push: { certificates: { $each: all_certi } },
       });
-      CoachUnverified.findByIdAndUpdate(coach_data._id, {
-        certificates: [...all_certi],
-      }).then(() => {
-        res.send({ server: true, res: true });
-      });
+
+      res.send({ server: true, res: true, uploaded: all_certi });
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).send({ server: false, res: false, error: err.message });
     }
-  });
-  // res.send({ message: "Upload successful", files: req.files });
-});
+  }
+);
 
 auth.post("/save_agreement", (req, res) => {
   CoachUnverified.findOne({ token: decrypt(req.body.token) })

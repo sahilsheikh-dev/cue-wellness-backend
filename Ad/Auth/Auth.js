@@ -10,7 +10,7 @@ const Numbers = require("../../Database/app/Numbers.js");
 const twilio = require("twilio");
 
 const accountSid = "ACc86102fc09260ed1cc341237ddfa2aeb";
-const authToken = "56f6d1015cfee877def7f1b1987417ca";
+const authToken = "59a90ca1dcaf5d17b51e54efd728bb46";
 const verifySid = "VA4a0b9a2e84100362aaf4781ec8faf191";
 const client = twilio(accountSid, authToken);
 
@@ -376,7 +376,8 @@ auth.post("/otp", async (req, res) => {
         .verificationChecks.create({ to: userData.mobile, code: otp });
       if (verificationCheck.status == "approved") {
         let newToken = getId(12);
-        AdUnverified.updateOne(
+        AdUnverified.
+        updateOne(
           { _id: userData._id },
           {
             $set: {

@@ -20,9 +20,9 @@ const VerifyCoachFull = require("./VerifyCoachFull");
 const VerifyCoachFull2 = require("./VerifyCoachFull2");
 const multer = require("multer");
 const path = require("path");
-const Coach = require("../../Database/coach/coachSchema");
+const Coaches = require("../../Database/coach/coachSchema");
 const CoachUnverified = require("../../Database/coach/coachUnverified.js");
-const Coachunverified2 = require("../../Database/coach/coachUnverified2.js");
+const CoachUnverified2 = require("../../Database/coach/coachUnverified2.js");
 
 const {
   GuidelineAwareness,
@@ -291,7 +291,7 @@ main.post("/get-verified-coach", async (req, res) => {
   VerifyToken(req.cookies.AuthToken)
     .then(async (r) => {
       if (enu(req.body.id)) {
-        await Coach.findById(req.body.id).then((indi_coaches) => {
+        await Coaches.findById(req.body.id).then((indi_coaches) => {
           res.send({
             server: true,
             res: true,
@@ -375,7 +375,7 @@ main.post("/get-half-verified-coach", async (req, res) => {
   VerifyToken(req.cookies.AuthToken)
     .then(async (r) => {
       if (enu(req.body.id)) {
-        await Coachunverified2.findById(req.body.id).then((indi_coaches) => {
+        await CoachUnverified2.findById(req.body.id).then((indi_coaches) => {
           res.send({
             server: true,
             res: true,
@@ -457,32 +457,52 @@ main.post("/verify-coach-final", (req, res) => {
   });
 });
 
-main.post("/is-verified", (req, res) => {
-  console.log(req.body);
-  console.log(decrypt(req.body.token));
-  Coaches.findOne({ token: decrypt(req.body.token) }).then((result) => {
-    if (result == null) {
-      CoachUnverified.findOne({ token: decrypt(req.body.token) }).then(
-        (cuv_data) => {
-          if (cuv_data == null) {
-            CoachUnverified2.findOne({ token: decrypt(req.body.token) }).then(
-              (cu2) => {
-                if (cu2 == null) {
-                  res.send({ server: true, res: false, redirect: "logout" });
-                } else {
-                  res.send({ server: true, res: false, supply: "2" });
-                }
-              }
-            );
-          } else {
-            res.send({ server: true, res: false, supply: "1" });
-          }
-        }
-      );
-    } else {
-      res.send({ server: true, res: true });
+main.post("/is-verified", async (req, res) => {
+  try {
+    console.log("Incoming body:", req.body);
+
+    if (!req.body.token) {
+      return res
+        .status(400)
+        .send({ server: false, error: "No token provided" });
     }
-  });
+
+    const decryptedToken = decrypt(req.body.token);
+    console.log("Decrypted token:", decryptedToken);
+
+    // Safety: If decrypt fails
+    if (!decryptedToken) {
+      return res.status(400).send({ server: false, error: "Invalid token" });
+    }
+
+    // Query 1: Coaches
+    const coach = await Coaches.findOne({ token: decryptedToken }).lean();
+    console.log("Coach result:", coach);
+    if (coach) return res.send({ server: true, res: true });
+
+    // Query 2: CoachUnverified
+    const cuvData = await CoachUnverified.findOne({
+      token: decryptedToken,
+    }).lean();
+    console.log("CoachUnverified result:", cuvData);
+    if (cuvData) return res.send({ server: true, res: false, supply: "1" });
+
+    // Query 3: CoachUnverified2
+    const cu2 = await CoachUnverified2.findOne({
+      token: decryptedToken,
+    }).lean();
+    console.log("CoachUnverified2 result:", cu2);
+    if (cu2) return res.send({ server: true, res: false, supply: "2" });
+
+    // If no match
+    console.log("No match found → logout");
+    return res.send({ server: true, res: false, redirect: "logout" });
+  } catch (err) {
+    console.error("Error in /is-verified:", err);
+    return res
+      .status(500)
+      .send({ server: false, error: "Internal Server Error" });
+  }
 });
 
 main.post("/save-story", async (req, res) => {

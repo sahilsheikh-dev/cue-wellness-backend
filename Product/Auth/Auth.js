@@ -11,7 +11,7 @@ const twilio = require("twilio");
 // const VerifyToken = require("../../Admin/Auth/VerifyToken.js");
 
 const accountSid = "ACc86102fc09260ed1cc341237ddfa2aeb";
-const authToken = "56f6d1015cfee877def7f1b1987417ca";
+const authToken = "59a90ca1dcaf5d17b51e54efd728bb46";
 const verifySid = "VA4a0b9a2e84100362aaf4781ec8faf191";
 const client = twilio(accountSid, authToken);
 
