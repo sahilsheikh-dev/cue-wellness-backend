@@ -15,13 +15,12 @@ module.exports.decrypt = (text) => {
 // module.exports = decrypt;
 
 // how to use encryption and decryption
-const encryptedString = cryptr.encrypt("cuewellness");
-const decryptedString = cryptr.decrypt(encryptedString);
-
-console.log(encryptedString);
-console.log(decryptedString);
+// const encryptedString = cryptr.encrypt("cuewellness");
+// console.log(encryptedString);
+// const decryptedString = cryptr.decrypt(encryptedString);
+// console.log(decryptedString);
 
 const temp_data = cryptr.decrypt(
-  "de3e48056291a31c198078b8c3f9153d3f77f63749875a7a1b2054df83da4e86d7899d244bb403d4134a3b0348bc34f3f6cb8c536c7b4aab9c0dde1e6141213de5f9007910af50b50d714e8686da449bd1f39a1454831fc0538d3f8367cbccf410ecbacb609a8794"
+  "56396128360c4481109c39dabf1986fe44f485a6af69342a37a482ba9cbd630ff31a7eb62f8427791efcbdcf5c2f28469291828129dd34d4cb08c4874b2a7ce1a023c47382813101dcff867af13a7c6235c53658d9ab76986c12075c473e9b39d9ab70634beb020a921c0b89"
 );
 console.log(temp_data);

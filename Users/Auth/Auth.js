@@ -19,8 +19,11 @@ const Country = require("../../Database/app/CountrySchema.js");
 const PrivacyPolicy = require("../../Database/app/PrivacyPolicy.js");
 const multer = require("multer");
 const path = require("path");
-const twilio = require("twilio");
+const Coaches = require("../../Database/coach/coachSchema");
+const CoachUnverified = require("../../Database/coach/coachUnverified.js");
+const CoachUnverified2 = require("../../Database/coach/coachUnverified2.js");
 
+const twilio = require("twilio");
 const accountSid = "ACc86102fc09260ed1cc341237ddfa2aeb";
 const authToken = "59a90ca1dcaf5d17b51e54efd728bb46";
 const verifySid = "VA4a0b9a2e84100362aaf4781ec8faf191";
@@ -365,63 +368,131 @@ auth.post("/login", (req, res) => {
     res.send({ server: true, res: false, alert: "Please fill all the fields" });
   }
 });
-auth.post("/login-coach", (req, res) => {
-  console.log(req.body);
-  // will see it after some time
-  if (enu(req.body.contact, req.body.password)) {
-    User.findOne({ mobile: req.body.contact })
-      .then((userData) => {
-        if (userData != undefined) {
-          if (decrypt(userData.password) == req.body.password) {
-            let newToken = getId(12);
-            User.updateOne({ _id: userData._id }, { $set: { token: newToken } })
-              .then((result) => {
-                res.send({
-                  server: true,
-                  res: true,
-                  supply: encrypt(newToken),
-                });
-              })
-              .catch((err) => {
-                const newError = new Error({
-                  name: "user login error",
-                  file: "users/auth.js",
-                  description: "was not able to put token+ " + err,
-                  dateTime: new Date(),
-                  section: "users",
-                  priority: "medium",
-                });
-                newError.save();
-                res.send({
-                  server: true,
-                  res: false,
-                  alert: "Something went wrong, please restart the app",
-                });
-              });
-          } else {
-            res.send({
-              server: true,
-              res: false,
-              alert: "Contact number or password is incorrect",
-            });
-          }
-        } else {
-          res.send({
-            server: true,
-            res: false,
-            alert: "Contact number or password is incorrect",
-          });
-        }
-      })
-      .catch((err) => {
-        res.send({
-          server: true,
-          res: false,
-          alert: "contact or password is incorrect",
-        });
+
+// auth.post("/login-coach", (req, res) => {
+//   console.log(req.body);
+//   // will see it after some time
+//   if (enu(req.body.contact, req.body.password)) {
+//     User.findOne({ mobile: req.body.contact })
+//       .then((userData) => {
+//         if (userData != undefined) {
+//           if (decrypt(userData.password) == req.body.password) {
+//             let newToken = getId(12);
+//             User.updateOne({ _id: userData._id }, { $set: { token: newToken } })
+//               .then((result) => {
+//                 res.send({
+//                   server: true,
+//                   res: true,
+//                   supply: encrypt(newToken),
+//                 });
+//               })
+//               .catch((err) => {
+//                 const newError = new Error({
+//                   name: "user login error",
+//                   file: "users/auth.js",
+//                   description: "was not able to put token+ " + err,
+//                   dateTime: new Date(),
+//                   section: "users",
+//                   priority: "medium",
+//                 });
+//                 newError.save();
+//                 res.send({
+//                   server: true,
+//                   res: false,
+//                   alert: "Something went wrong, please restart the app",
+//                 });
+//               });
+//           } else {
+//             res.send({
+//               server: true,
+//               res: false,
+//               alert: "Contact number or password is incorrect",
+//             });
+//           }
+//         } else {
+//           res.send({
+//             server: true,
+//             res: false,
+//             alert: "Contact number or password is incorrect",
+//           });
+//         }
+//       })
+//       .catch((err) => {
+//         res.send({
+//           server: true,
+//           res: false,
+//           alert: "contact or password is incorrect",
+//         });
+//       });
+//   } else {
+//     res.send({ server: true, res: false, alert: "Please fill all the fields" });
+//   }
+// });
+
+auth.post("/login-coach", async (req, res) => {
+  try {
+    const { contact, password } = req.body;
+
+    if (!contact || !password) {
+      return res.send({
+        server: true,
+        res: false,
+        alert: "Please fill all the fields",
       });
-  } else {
-    res.send({ server: true, res: false, alert: "Please fill all the fields" });
+    }
+
+    // Helper function to attempt login in a given collection
+    const tryLogin = async (Model, supply = null) => {
+      const userData = await Model.findOne({ mobile: contact }).lean();
+      if (!userData) return null;
+
+      if (decrypt(userData.password) === password) {
+        const newToken = getId(64); // generate a secure token
+        await Model.updateOne(
+          { _id: userData._id },
+          { $set: { token: newToken } }
+        );
+
+        return {
+          server: true,
+          res: supply ? false : true,
+          supply: supply || undefined,
+          token: encrypt(newToken),
+        };
+      }
+
+      return {
+        server: true,
+        res: false,
+        alert: "Contact or password is incorrect",
+      };
+    };
+
+    // Query 1: Coaches (fully verified)
+    let result = await tryLogin(Coaches);
+    if (result) return res.send(result);
+
+    // Query 2: CoachUnverified (half verified)
+    result = await tryLogin(CoachUnverified, "1");
+    if (result) return res.send(result);
+
+    // Query 3: CoachUnverified2 (unverified)
+    result = await tryLogin(CoachUnverified2, "2");
+    if (result) return res.send(result);
+
+    // If no match found
+    return res.send({
+      server: true,
+      res: false,
+      alert: "Contact number or password is incorrect",
+    });
+  } catch (err) {
+    console.error("Error in /login-coach:", err);
+    return res.status(500).send({
+      server: false,
+      res: false,
+      alert: "Something went wrong, please try again later",
+    });
   }
 });
 

@@ -376,8 +376,7 @@ auth.post("/otp", async (req, res) => {
         .verificationChecks.create({ to: userData.mobile, code: otp });
       if (verificationCheck.status == "approved") {
         let newToken = getId(12);
-        AdUnverified.
-        updateOne(
+        AdUnverified.updateOne(
           { _id: userData._id },
           {
             $set: {

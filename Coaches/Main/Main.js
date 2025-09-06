@@ -467,6 +467,7 @@ main.post("/is-verified", async (req, res) => {
         .send({ server: false, error: "No token provided" });
     }
 
+    console.log("Received token:", req.body.token);
     const decryptedToken = decrypt(req.body.token);
     console.log("Decrypted token:", decryptedToken);
 
@@ -586,6 +587,7 @@ main.post("/get-coach-info", async (req, res) => {
         const categories = await Connection.find({
           _id: { $in: indi_coaches.category.map((item) => item.id) },
         });
+
         res.send({
           server: true,
           res: true,
