@@ -37,86 +37,29 @@ let terms_coach = [];
 let terms_ad = [];
 let terms_shop = [];
 
-// getting terms client
-async function get_terms_client() {
-  console.log("starting client");
-  await TermsAndConditionsClient.findOne({
-    id: "id_for_termsandconditions",
-  }).then(async (all_tandc) => {
-    terms_client = [];
-    all_tandc.termsAndConditions.map((item) => {
-      terms_client.push({
-        id: item.id,
-        type: item.type,
-        content: decrypt(item.content),
-      });
-    });
-  });
-  console.log("client terms done");
-}
-// getting terms coach
-async function get_terms_coach() {
-  console.log("starting coach");
-  await TermsAndConditionsCoach.findOne({
-    id: "id_for_termsandconditions",
-  }).then(async (all_tandc) => {
-    terms_coach = [];
-    all_tandc.termsAndConditions.map((item) => {
-      terms_coach.push({
-        id: item.id,
-        type: item.type,
-        content: decrypt(item.content),
-      });
-    });
-  });
-  console.log("coach terms done");
-}
-// getting terms ad
-async function get_terms_ad() {
-  console.log("starting ad");
-  await TermsAndConditionsAd.findOne({ id: "id_for_termsandconditions" }).then(
-    async (all_tandc) => {
-      terms_ad = [];
-      all_tandc.termsAndConditions.map((item) => {
-        terms_ad.push({
-          id: item.id,
-          type: item.type,
-          content: decrypt(item.content),
-        });
-      });
+async function get_terms(Model, label) {
+  try {
+    console.log(`starting ${label}`);
+
+    const all_tandc = await Model.findOne({ id: "id_for_termsandconditions" });
+    if (!all_tandc || !all_tandc.termsAndConditions) {
+      console.warn(`${label}: No terms found`);
+      return [];
     }
-  );
 
-  console.log("ads terms done");
+    const terms = all_tandc.termsAndConditions.map((item) => ({
+      id: item.id,
+      type: item.type,
+      content: decrypt(item.content),
+    }));
+
+    console.log(`${label} terms done`);
+    return terms;
+  } catch (error) {
+    console.error(`Error fetching ${label} terms:`, error);
+    return [];
+  }
 }
-// getting terms shop
-async function get_terms_shop() {
-  console.log("starting shop");
-  await TermsAndConditionsShop.findOne({
-    id: "id_for_termsandconditions",
-  }).then(async (all_tandc) => {
-    terms_shop = [];
-    all_tandc.termsAndConditions.map((item) => {
-      terms_shop.push({
-        id: item.id,
-        type: item.type,
-        content: decrypt(item.content),
-      });
-    });
-  });
-
-  console.log("shop terms done");
-}
-
-// calling
-// open it
-// get_terms_client().then(() => {
-//   get_terms_coach().then(() => {
-//     get_terms_ad().then(() => {
-//       get_terms_shop();
-//     });
-//   });
-// });
 
 // create a route to update them from dashboard
 async function send_otp(phone) {
@@ -749,31 +692,39 @@ auth.post("/get-terms-and-condition-depriciated", async (req, res) => {
   }
 });
 
-auth.post("/get-terms-and-condition", (req, res) => {
-  console.log(req.body);
-  if (req.body.role == "user") {
+auth.post("/get-terms-and-condition", async (req, res) => {
+  console.log("Terms and Conditions:", req.body);
+
+  try {
+    let supply = [];
+
+    if (req.body.role === "user") {
+      supply = await get_terms(TermsAndConditionsClient, "client");
+    } else if (req.body.role === "coach") {
+      supply = await get_terms(TermsAndConditionsCoach, "coach");
+    } else if (req.body.role === "ad") {
+      supply = await get_terms(TermsAndConditionsAd, "ad");
+    } else if (req.body.role === "shop") {
+      supply = await get_terms(TermsAndConditionsShop, "shop");
+    } else {
+      return res.status(400).send({
+        server: false,
+        res: false,
+        message: "Invalid role",
+      });
+    }
+
     res.send({
       server: true,
       res: true,
-      supply: terms_client,
+      supply,
     });
-  } else if (req.body.role == "coach") {
-    res.send({
-      server: true,
-      res: true,
-      supply: terms_coach,
-    });
-  } else if (req.body.role == "ad") {
-    res.send({
-      server: true,
-      res: true,
-      supply: terms_ad,
-    });
-  } else if (req.body.role == "shop") {
-    res.send({
-      server: true,
-      res: true,
-      supply: terms_shop,
+  } catch (error) {
+    console.error("Error in /get-terms-and-condition:", error);
+    res.status(500).send({
+      server: false,
+      res: false,
+      message: "Internal Server Error",
     });
   }
 });
