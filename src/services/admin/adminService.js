@@ -52,7 +52,7 @@ async function listAdmins({ page = 1, limit = 20 } = {}) {
   const admins = await Admin.find().skip(skip).limit(limit);
   return admins.map((a) => ({
     id: a._id,
-    name: decrypt(a.name),
+    name: a.name,
     email: a.email,
     mobile: a.mobile,
     designation: a.designation,
@@ -67,7 +67,7 @@ async function getAdminById(id) {
   if (!admin) return null;
   return {
     id: admin._id,
-    name: decrypt(admin.name),
+    name: admin.name,
     email: admin.email,
     mobile: admin.mobile,
     designation: admin.designation,

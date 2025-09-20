@@ -1,4 +1,4 @@
-const adminService = require("../../services/adminService");
+const adminService = require("../../services/admin/adminService");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const validateInputs = require("../../utils/validateInputs.util");
 const ErrorLog = require("../../models/errorModel");
@@ -151,6 +151,7 @@ async function login(req, res) {
       return res.status(401).send({ message: "Invalid mobile or password" });
 
     const { admin, token } = result;
+
     res.cookie("AuthToken", encrypt(token), {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
@@ -162,7 +163,7 @@ async function login(req, res) {
       message: "Login successful",
       data: {
         token: encrypt(token),
-        name: decrypt(admin.name),
+        name: admin.name,
         email: admin.email,
         mobile: admin.mobile,
         designation: admin.designation,
@@ -204,7 +205,15 @@ async function checkCookie(req, res) {
 
     res.status(200).send({
       message: "Token valid",
-      data: { id: admin._id, name: decrypt(admin.name) },
+      data: {
+        token: encrypt(admin.token),
+        name: admin.name,
+        email: admin.email,
+        mobile: admin.mobile,
+        designation: admin.designation,
+        permissions: admin.permissions,
+        superAdmin: admin.superAdmin,
+      },
     });
   } catch (error) {
     res.status(500).send({ message: "Error checking token", error });

@@ -10,7 +10,7 @@ const app = express();
 
 // Read allowed origins from .env
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
+  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
   : [];
 
 // Middlewares
