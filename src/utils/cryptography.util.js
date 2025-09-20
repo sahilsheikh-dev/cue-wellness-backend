@@ -1,31 +1,30 @@
 const Cryptr = require("cryptr");
-const cryptr = new Cryptr("cuewellness@ssenlleweuc");
+
+if (!process.env.CRYPTR_SECRET) {
+  console.error("❌ CRYPTR_SECRET is missing in .env");
+}
+
+const cryptr = new Cryptr(process.env.CRYPTR_SECRET || "default_fallback");
 
 const encrypt = (text) => {
-  let new_encrypt_text = cryptr.encrypt(text);
-  return new_encrypt_text;
+  if (!text) return null;
+  return cryptr.encrypt(text);
 };
 
 const decrypt = (text) => {
-  let new_decrypt_text = cryptr.decrypt(text);
-  return new_decrypt_text;
+  if (!text) return null;
+  try {
+    return cryptr.decrypt(text);
+  } catch (err) {
+    console.error("❌ Decrypt failed:", text, err.message);
+    return null;
+  }
 };
 
-// module.exports = encrypt;
-// module.exports = decrypt;
+module.exports = { encrypt, decrypt };
 
-// how to use encryption and decryption
+// EXAMPLES - how to use encryption and decryption
 // const encryptedString = cryptr.encrypt("cuewellness");
 // console.log(encryptedString);
 // const decryptedString = cryptr.decrypt(encryptedString);
 // console.log(decryptedString);
-
-const temp_data = cryptr.decrypt(
-  "56396128360c4481109c39dabf1986fe44f485a6af69342a37a482ba9cbd630ff31a7eb62f8427791efcbdcf5c2f28469291828129dd34d4cb08c4874b2a7ce1a023c47382813101dcff867af13a7c6235c53658d9ab76986c12075c473e9b39d9ab70634beb020a921c0b89"
-);
-console.log(temp_data);
-
-module.exports = {
-  encrypt,
-  decrypt,
-}
