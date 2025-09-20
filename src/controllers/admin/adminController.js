@@ -1,136 +1,223 @@
-const Admin = require("../../models/admin/adminModel");
-const adminService = require("../../services/admin/adminService");
+const adminService = require("../../services/adminService");
+const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const validateInputs = require("../../utils/validateInputs.util");
-const { decrypt, encrypt } = require("../../utils/cryptography.util");
 const ErrorLog = require("../../models/errorModel");
 
-// Add new admin
-const addAdmin = async (req, res) => {
+// Add admin/staff
+async function addAdmin(req, res) {
   try {
-    const headers = req.headers;
-    const adminData = await adminService.findAdminByToken(headers.token);
-    if (!adminData) {
-      return res.status(400).send({
-        message: "Admin Not Found",
-        timestamp: new Date().toISOString(),
-        error: "Not Found",
-      });
+    const {
+      name,
+      mobile,
+      email,
+      password,
+      dob,
+      country,
+      gender,
+      designation,
+      permissions,
+      superAdmin,
+    } = req.body;
+
+    if (!validateInputs(name, mobile, password)) {
+      return res
+        .status(400)
+        .send({ message: "Name, mobile and password required" });
     }
-    console.log("found the token");
-    // TODO: implement add admin logic
-  } catch (error) {
-    res.status(500).send({
-      message: "Something went wrong during add admin, please try again",
-      timestamp: new Date().toISOString(),
-      error: "Internal Server Error",
+
+    const existing = await adminService.checkAdminByMobileOrEmail(
+      mobile,
+      email
+    );
+    if (existing) {
+      return res.status(409).send({ message: "Admin/Staff already exists" });
+    }
+
+    const newAdmin = await adminService.createAdmin({
+      name,
+      mobile,
+      email,
+      password,
+      dob,
+      country,
+      gender,
+      designation,
+      permissions,
+      superAdmin,
     });
-  }
-};
 
-// Admin login
-const login = async (req, res) => {
-  const { mobile, password } = req.body;
-
-  if (!validateInputs(mobile, password)) {
-    return res.status(400).send({
-      message: "Please fill all the details",
-      timestamp: new Date().toISOString(),
-      error: "Bad Request",
-    });
-  }
-
-  try {
-    const adminData = await adminService.findAdminByMobile(mobile);
-
-    if (!adminData) {
-      return res.status(401).send({
-        message: "Mobile number or password is incorrect",
-        timestamp: new Date().toISOString(),
-        error: "Unauthorized",
-      });
-    }
-
-    if (password === decrypt(adminData.password)) {
-      const newToken = await adminService.updateAdminToken(adminData._id);
-
-      res.cookie("AuthToken", encrypt(newToken), {
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        secure: true,
-        sameSite: "None",
-      });
-
-      return res.status(200).send({
-        timestamp: new Date().toISOString(),
-        message: "Login Success",
-        data: { token: encrypt(newToken) },
-      });
-    }
-
-    res.status(401).send({
-      message: "Mobile number or password is incorrect",
-      timestamp: new Date().toISOString(),
-      error: "Unauthorized",
+    res.status(201).send({
+      message: "Admin/Staff added successfully",
+      data: {
+        id: newAdmin._id,
+        name: newAdmin.name,
+        mobile: newAdmin.mobile,
+        email: newAdmin.email,
+      },
     });
   } catch (error) {
-    const newError = new ErrorLog({
-      name: "admin login",
+    const log = new ErrorLog({
+      name: "add admin",
       file: "controllers/adminController.js",
-      description: "Error while login: " + error,
+      description: error,
       dateTime: new Date(),
       section: "admin",
-      priority: "low",
+      priority: "high",
     });
-    newError.save();
-
-    res.status(500).send({
-      message: "Something went wrong during login, please try again",
-      timestamp: new Date().toISOString(),
-      error: error,
-    });
+    await log.save();
+    res.status(500).send({ message: "Error adding admin/staff", error });
   }
-};
+}
 
-// Check cookie
-const checkCookie = async (req, res) => {
+// Update admin/staff
+async function updateAdmin(req, res) {
   try {
-    const cookies = req.cookies;
-
-    if (!validateInputs(cookies.AuthToken)) {
-      return res.status(401).send({
-        message: "Not a valid token",
-        timestamp: new Date().toISOString(),
-        error: "Uauthorized",
-      });
-    }
-
-    const result = await Admin.findOne({
-      token: decrypt(cookies.AuthToken),
+    const updatedAdmin = await adminService.updateAdmin(
+      req.params.id,
+      req.body
+    );
+    if (!updatedAdmin)
+      return res.status(404).send({ message: "Admin/Staff not found" });
+    res
+      .status(200)
+      .send({ message: "Updated successfully", data: updatedAdmin });
+  } catch (error) {
+    const log = new ErrorLog({
+      name: "update admin",
+      file: "controllers/adminController.js",
+      description: error,
+      dateTime: new Date(),
+      section: "admin",
+      priority: "high",
     });
+    await log.save();
+    res.status(500).send({ message: "Error updating admin/staff", error });
+  }
+}
 
-    if (!result) {
-      return res.status(404).send({
-        message: "Admin Not found",
-        timestamp: new Date().toISOString(),
-        error: "Not Found",
-      });
-    }
+// Delete admin/staff
+async function deleteAdmin(req, res) {
+  try {
+    const deletedAdmin = await adminService.deleteAdmin(req.params.id);
+    if (!deletedAdmin)
+      return res.status(404).send({ message: "Admin/Staff not found" });
+    res.status(200).send({ message: "Deleted successfully" });
+  } catch (error) {
+    const log = new ErrorLog({
+      name: "delete admin",
+      file: "controllers/adminController.js",
+      description: error,
+      dateTime: new Date(),
+      section: "admin",
+      priority: "high",
+    });
+    await log.save();
+    res.status(500).send({ message: "Error deleting admin/staff", error });
+  }
+}
+
+// List admins/staff
+async function listAdmins(req, res) {
+  try {
+    const { page, limit } = req.query;
+    const data = await adminService.listAdmins({ page, limit });
+    res.status(200).send({ message: "Success", data });
+  } catch (error) {
+    res.status(500).send({ message: "Error listing admins/staff", error });
+  }
+}
+
+// Get single admin/staff
+async function getAdmin(req, res) {
+  try {
+    const data = await adminService.getAdminById(req.params.id);
+    if (!data)
+      return res.status(404).send({ message: "Admin/Staff not found" });
+    res.status(200).send({ message: "Success", data });
+  } catch (error) {
+    res.status(500).send({ message: "Error fetching admin/staff", error });
+  }
+}
+
+// Login
+async function login(req, res) {
+  try {
+    const { mobile, password } = req.body;
+    if (!validateInputs(mobile, password))
+      return res.status(400).send({ message: "Fill all details" });
+
+    const result = await adminService.login(mobile, password);
+    if (!result)
+      return res.status(401).send({ message: "Invalid mobile or password" });
+
+    const { admin, token } = result;
+    res.cookie("AuthToken", encrypt(token), {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      secure: true,
+      sameSite: "None",
+    });
 
     res.status(200).send({
-      message: "Check Cookie successfull",
-      timestamp: new Date().toISOString(),
+      message: "Login successful",
+      data: {
+        token: encrypt(token),
+        name: decrypt(admin.name),
+        email: admin.email,
+        mobile: admin.mobile,
+        designation: admin.designation,
+        permissions: admin.permissions,
+        superAdmin: admin.superAdmin,
+      },
     });
   } catch (error) {
-    res.status(500).send({
-      message: "Something went wrong while checking cookie, please try again",
-      timestamp: new Date().toISOString(),
-      error: error,
-    });
+    res.status(500).send({ message: "Login failed", error });
   }
-};
+}
+
+// Logout
+async function logout(req, res) {
+  try {
+    const token = req.headers.token || req.cookies.AuthToken;
+    if (!token) return res.status(400).send({ message: "No token provided" });
+
+    const admin = await adminService.logout(decrypt(token));
+    if (!admin)
+      return res.status(404).send({ message: "Admin/Staff not found" });
+
+    res.clearCookie("AuthToken");
+    res.status(200).send({ message: "Logout successful" });
+  } catch (error) {
+    res.status(500).send({ message: "Logout failed", error });
+  }
+}
+
+// Check cookie
+async function checkCookie(req, res) {
+  try {
+    const token = req.cookies.AuthToken;
+    if (!token) return res.status(401).send({ message: "No token found" });
+
+    const admin = await adminService.checkToken(decrypt(token));
+    if (!admin)
+      return res.status(404).send({ message: "Admin/Staff not found" });
+
+    res.status(200).send({
+      message: "Token valid",
+      data: { id: admin._id, name: decrypt(admin.name) },
+    });
+  } catch (error) {
+    res.status(500).send({ message: "Error checking token", error });
+  }
+}
 
 module.exports = {
   addAdmin,
+  updateAdmin,
+  deleteAdmin,
+  listAdmins,
+  getAdmin,
   login,
+  logout,
   checkCookie,
 };
