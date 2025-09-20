@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../../controllers/admin/adminController");
-const verifyAdmin = require("../../middlewares/admin/adminMiddleware");
+const verifyAdmin = require("../../middlewares/admin/adminMiddleWare");
 const permissions = require("../../configs/permissionConfig");
 
 // Public routes
