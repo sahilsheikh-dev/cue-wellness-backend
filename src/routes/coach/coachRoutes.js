@@ -3,6 +3,7 @@ const router = express.Router();
 const coachController = require("../../controllers/coach/coachController");
 const verifyCoach = require("../../middlewares/coach/verifyCoach");
 const verifyAdmin = require("../../middlewares/admin/adminMiddleWare");
+const permissions = require("../../configs/permissionConfig");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -39,60 +40,32 @@ router.post("/signup", coachController.signup);
 router.post("/verify-otp", coachController.verifyOtp);
 router.post("/login", coachController.login);
 router.post("/logout", coachController.logout);
+// router.post("/check-cookie", coachController.checkCookie);     // PENDING
 
 // Authenticated coach routes
-router.get("/gerUserInfo", verifyCoach(), coachController.getPersonalInfo);
-router.put("/updateProfile", verifyCoach(), coachController.updateProfile);
+router.get("/gerMyInfo", verifyCoach(), coachController.getPersonalInfo);
+router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
+// router.put("/changeMyPassword", verifyCoach(), coachController.changePassword);    // PENDING
+// router.delete("/deleteMyAccount", verifyCoach(), coachController.deleteAccount);    // PENDING
 
 // Uploads
-router.post(
-  "/upload-profile-picture",
-  verifyCoach(),
-  uploadProfilePic.single("profilePicture"),
-  coachController.uploadProfilePicture
-);
-
-router.post(
-  "/upload-certificates",
-  verifyCoach(),
-  uploadCertificates.array("certificates", 10),
-  coachController.uploadCertificates
-);
-
-router.post(
-  "/upload-work-images",
-  verifyCoach(),
-  uploadWorkImages.array("workImages", 3),
-  coachController.uploadWorkImages
-);
+router.post("/upload-profile-picture", verifyCoach(), uploadProfilePic.single("profilePicture"), coachController.uploadProfilePicture);
+router.post("/upload-certificates", verifyCoach(), uploadCertificates.array("certificates", 10), coachController.uploadCertificates);
+router.post("/upload-work-images", verifyCoach(), uploadWorkImages.array("workImages", 3), coachController.uploadWorkImages);
 
 // Agreement & sessions
 router.post("/save-agreement", verifyCoach(), coachController.saveAgreement);
-router.post(
-  "/save-pricing-slots",
-  verifyCoach(),
-  coachController.savePricingSlots
-);
+router.post("/save-pricing-slots", verifyCoach(), coachController.savePricingSlots);
 
 // Like / save
 router.post("/like-activity", verifyCoach(), coachController.likeActivity);
-router.post(
-  "/dislike-activity",
-  verifyCoach(),
-  coachController.dislikeActivity
-);
+router.post("/dislike-activity", verifyCoach(), coachController.dislikeActivity);
 router.post("/save-coach", verifyCoach(), coachController.saveCoach);
 router.post("/unsave-coach", verifyCoach(), coachController.unsaveCoach);
 
-// Public listings
-router.get("/list", coachController.list);
-router.get("/get/:id", coachController.getById);
-
 // Admin-only action: change status
-router.put(
-  "/admin/change-status/:id",
-  verifyAdmin,
-  coachController.changeStatus
-);
+router.get("/list", verifyAdmin(permissions["coach:list"]), coachController.list);
+router.get("/get/:id", verifyAdmin(permissions["coach:get"]), coachController.getById);
+router.put("/admin/change-status/:id", verifyAdmin(permissions["coach:changeStatus"]), coachController.changeStatus);
 
 module.exports = router;
