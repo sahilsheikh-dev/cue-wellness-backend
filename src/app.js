@@ -5,6 +5,8 @@ const cors = require("cors");
 
 // Import routes
 const adminRoutes = require("../src/routes/admin/adminRoutes");
+const otpRoutes = require("../src/routes/otpRoutes");
+const coachRoutes = require("../src/routes/coach/coachRoutes");
 
 const app = express();
 
@@ -32,6 +34,8 @@ app.use(
 
 // API routes
 app.use("/admin", adminRoutes);
+app.use("/otp", otpRoutes);
+app.use("/coach", coachRoutes);
 
 // Health check / default route
 app.get("/", (req, res) => {
