@@ -32,13 +32,19 @@ jobs:
           echo "value=$HOSTNAME" >> $GITHUB_OUTPUT
           echo "Captured Hostname: $HOSTNAME"
 
-      # --- Capture Host IP from Server ---
+      # --- Capture Host IP (only IPv4) from Server ---
       - name: Capture Host IP
         id: get_hostip
         run: |
-          HOSTIP=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname -I | awk '{print $1}'")
+          HOSTIP=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname -I | awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\./) {print $i; exit}}'")
           echo "value=$HOSTIP" >> $GITHUB_OUTPUT
           echo "Captured Host IP: $HOSTIP"
+
+      # --- Set Service Name ---
+      - name: Set Service Name
+        id: service_name
+        run: |
+          echo "value=Cue Wellness Backend" >> $GITHUB_OUTPUT
 
       # --- Deploy ---
       - name: Deploy to Server via SSH
@@ -168,10 +174,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
+          subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ steps.service_name.outputs.value }} on ${{ steps.get_hostname.outputs.value }} (${{ steps.get_hostip.outputs.value }})"
           html_body: |
             <h2>✅ Deployment Successful</h2>
-            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> was successful.</p>
+            <p>The deployment of <b>${{ steps.service_name.outputs.value }}</b> to <b>${{ steps.get_hostname.outputs.value }} (${{ steps.get_hostip.outputs.value }})</b> was successful.</p>
             <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
@@ -207,10 +213,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
+          subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ steps.service_name.outputs.value }} on ${{ steps.get_hostname.outputs.value }} (${{ steps.get_hostip.outputs.value }})"
           html_body: |
             <h2>❌ Deployment Failed</h2>
-            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> failed.</p>
+            <p>The deployment to <b>${{ steps.service_name.outputs.value }}</b> to <b>${{ steps.get_hostname.outputs.value }} (${{ steps.get_hostip.outputs.value }})</b> failed.</p>
             <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
