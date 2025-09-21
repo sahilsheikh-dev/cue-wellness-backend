@@ -47,6 +47,8 @@ router.post("build-profile",coachController.buildProfile)
 // Authenticated coach routes
 router.get("/gerMyInfo", verifyCoach(), coachController.getPersonalInfo);
 router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
+router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
+router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
 // router.put("/changeMyPassword", verifyCoach(), coachController.changePassword);    // PENDING
 // router.delete("/deleteMyAccount", verifyCoach(), coachController.deleteAccount);    // PENDING
 
@@ -69,7 +71,5 @@ router.post("/unsave-coach", verifyCoach(), coachController.unsaveCoach);
 router.get("/list", verifyAdmin(permissions["coach:list"]), coachController.list);
 router.get("/get/:id", verifyAdmin(permissions["coach:get"]), coachController.getById);
 router.put("/admin/change-status/:id", verifyAdmin(permissions["coach:changeStatus"]), coachController.changeStatus);
-router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
-router.updatePassword("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
 
 module.exports = router;

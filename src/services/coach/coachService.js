@@ -208,6 +208,67 @@ async function setWorkAssets(id, files) {
   return await Coach.findByIdAndUpdate(id, { workImages }, { new: true });
 }
 
+// Build / update coach profile
+async function buildProfile(payload) {
+  // Parse DOB from MM-DD-YYYY
+  let [month, day, year] = payload.dob.split("-").map(Number);
+  let dob = new Date(year, month - 1, day);
+
+  const updatedCoach = await Coach.findOneAndUpdate(
+    { token: decrypt(payload.token) },
+    {
+      email: encrypt(payload.email),
+      dob,
+      gender: encrypt(payload.gender),
+      pinCode: encrypt(payload.pin_code),
+      country: payload.country,
+      city: encrypt(payload.city),
+      address: encrypt(payload.address),
+      experience_year: encrypt(payload.experience.year),
+      experience_months: encrypt(payload.experience.months),
+      category: payload.category.map((item) => ({
+        id: item.id,
+        coach_experties_level: item.coach_experties_level,
+        session: item.session.map((s) => ({
+          client_experties_level: s.client_experties_level,
+          session_type: s.session_type,
+          avg_time: s.avg_time,
+          avg_price: s.avg_price,
+          currency: s.currency,
+          slots: s.slots || [],
+        })),
+      })),
+      client_gender: payload.client_gender.map((g) => encrypt(g)),
+      languages: payload.languages.map((l) => l._id),
+      verified: false,
+    },
+    { new: true }
+  );
+
+  return updatedCoach ? formatCoach(updatedCoach) : null;
+}
+
+// Delete coach
+async function deleteCoach(coachId) {
+  const deletedCoach = await Coach.findByIdAndDelete(coachId);
+  return deletedCoach ? formatCoach(deletedCoach) : null;
+}
+
+// Update password
+async function updatePassword(coachId, oldPassword, newPassword) {
+  const coach = await Coach.findById(coachId);
+  if (!coach) return null;
+
+  const currentPassword = decrypt(coach.password);
+  if (currentPassword !== oldPassword) {
+    return { error: "Old password is incorrect" };
+  }
+
+  coach.password = encrypt(newPassword);
+  await coach.save();
+  return formatCoach(coach);
+}
+
 module.exports = {
   createUnverifiedCoach,
   setTokenForCoachById,
@@ -224,4 +285,7 @@ module.exports = {
   toggleSaveCoach,
   setProfilePicture,
   setWorkAssets,
+  buildProfile,
+  deleteCoach,
+  updatePassword
 };

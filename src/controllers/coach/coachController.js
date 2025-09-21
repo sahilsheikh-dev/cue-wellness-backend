@@ -672,13 +672,8 @@ const checkCookie = async (req, res) => {
 
 const buildProfile = async (req, res) => {
   try {
-    // Parse DOB from MM-DD-YYYY
-    let [month, day, year] = req.body.dob.split("-").map(Number);
-    let dob = new Date(year, month - 1, day);
-
-    // Validate required fields
     if (
-      validateInputs(
+      !validateInputs(
         req.body.email,
         req.body.dob,
         req.body.gender,
@@ -693,159 +688,82 @@ const buildProfile = async (req, res) => {
         req.body.client_gender
       )
     ) {
-      const updatedCoach = await Coach.findOneAndUpdate(
-        { token: decrypt(req.body.token) }, // find coach by decrypted token
-        {
-          email: encrypt(req.body.email),
-          dob: dob,
-          gender: encrypt(req.body.gender),
-          pinCode: encrypt(req.body.pin_code),
-          country: req.body.country,
-          city: encrypt(req.body.city),
-          address: encrypt(req.body.address),
-          experience_year: encrypt(req.body.experience.year),
-          experience_months: encrypt(req.body.experience.months),
-
-          category: req.body.category.map((item) => ({
-            id: item.id,
-            coach_experties_level: item.coach_experties_level, // e.g. ["Beginner", "Advanced"]
-            session: item.session.map((s) => ({
-              client_experties_level: s.client_experties_level,
-              session_type: s.session_type,
-              avg_time: s.avg_time,
-              avg_price: s.avg_price,
-              currency: s.currency,
-              slots: s.slots || [],
-            })),
-          })),
-
-          client_gender: req.body.client_gender.map((g) => encrypt(g)),
-          languages: req.body.languages.map((l) => l._id),
-          verified: false,
-        },
-        { new: true }
-      );
-
-      if (!updatedCoach) {
-        return res.status(404).send({
-          message:"Coach not found",
-          error:"Not found",
-        });
-      }
-
-      res.send({ server: true, res: true, data: updatedCoach });
-    } else {
-      res.status(400).send({
-        message:"Please fill all the details",
-        error:"Bad Request",
+      return res.status(400).send({
+        message: "Please fill all the details",
+        error: "Bad Request",
       });
     }
+
+    const updatedCoach = await coachService.buildProfile(req.body);
+    if (!updatedCoach) {
+      return res.status(404).send({ message: "Coach not found", error: "Not found" });
+    }
+
+    return res.status(200).send({ message: "Profile built successfully", data: updatedCoach });
   } catch (err) {
-    console.error("Error in build-profile:", err);
-    const newError = new ErrorLog({
+    console.error("buildProfile error:", err);
+    const newError = new Error({
       name: "build coach profile error",
       file: "controllers/coach/coachController",
-      description: "Error while building coach profile: " + err.message,
+      description: err.message,
       dateTime: new Date(),
       section: "coach",
-      priority: "low",
+      priority: "high",
     });
     await newError.save();
-    res.status(500).send({
-      message:"Internal Server Error",
-      error:err.message,
-    });
+    return res.status(500).send({ message: "Internal Server Error", error: err.message });
   }
 };
 
 const deleteCoach = async (req, res) => {
   try {
-    const coachId = req.params.id;
+    const deletedCoach = await coachService.deleteCoach(req.params.id);
+    if (!deletedCoach) return res.status(404).send({ message: "Coach not found", error: "Not found" });
 
-    const deletedCoach = await Coach.findByIdAndDelete(coachId);
-
-    if (!deletedCoach) {
-      return res.status(404).json({
-        message: "Coach not found",
-        error:"Not found"
-      });
-    }
-
-    res.status(200).json({
-      message: "Coach deleted successfully",
-      data: deletedCoach,
-    });
+    return res.status(200).send({ message: "Coach deleted successfully", data: deletedCoach });
   } catch (err) {
-    console.error("Error deleting coach:", err);
-    const newError = new ErrorLog({
-      name: "delete coach profile error",
+    console.error("deleteCoach error:", err);
+    const newError = new Error({
+      name: "delete coach error",
       file: "controllers/coach/coachController",
-      description: "Error while building coach profile: " + err.message,
+      description: err.message,
       dateTime: new Date(),
       section: "coach",
-      priority: "low",
+      priority: "high",
     });
     await newError.save();
-    res.status(500).json({
-      message: "Internal Server Error",
-      error: err.message,
-    });
+    return res.status(500).send({ message: "Internal Server Error", error: err.message });
   }
 };
 
 const updatePassword = async (req, res) => {
   try {
-    const coachId = req.params.id;
     const { oldPassword, newPassword } = req.body;
-
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({
-        message: "Old password and new password are required",
-        error:"Bad Request",
-      });
+      return res.status(400).send({ message: "Old and new password required", error: "Bad Request" });
     }
 
-    // Find coach
-    const coach = await Coach.findById(coachId);
-    if (!coach) {
-      return res.status(404).json({
-        message: "Coach not found",
-        error:"Not found",
-
-      });
+    const result = await coachService.updatePassword(req.params.id, oldPassword, newPassword);
+    if (!result) {
+      return res.status(404).send({ message: "Coach not found", error: "Not found" });
+    }
+    if (result.error) {
+      return res.status(401).send({ message: result.error, error: "Unauthorized" });
     }
 
-    // Decrypt stored password and compare
-    const currentPassword = decrypt(coach.password);
-    if (currentPassword !== oldPassword) {
-      return res.status(401).json({
-        message: "Old password is incorrect",
-        error:"Not found",
-      });
-    }
-
-    // Encrypt and save new password
-    coach.password = encrypt(newPassword);
-    await coach.save();
-
-    res.status(200).json({
-      message: "Password updated successfully",
-    });
+    return res.status(200).send({ message: "Password updated successfully" });
   } catch (err) {
-    console.error("Error updating password:", err);
-    const newError = new ErrorLog({
+    console.error("updatePassword error:", err);
+    const newError = new Error({
       name: "update password error",
       file: "controllers/coach/coachController",
-      description: "Error while updating the password: " + err.message,
+      description: err.message,
       dateTime: new Date(),
       section: "coach",
-      priority: "low",
+      priority: "high",
     });
     await newError.save();
-    res.status(500).json({
-      message: "Internal Server Error",
-      error:err.message,
-    });
+    return res.status(500).send({ message: "Internal Server Error", error: err.message });
   }
 };
 
