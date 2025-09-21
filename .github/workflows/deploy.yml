@@ -116,6 +116,15 @@ jobs:
           scp -o StrictHostKeyChecking=no -i id_rsa \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/pm2_error.log ./pm2_error.log || true
 
+      # --- Fetch PM2 Status snapshot on failure (so OPS gets both error + status) ---
+      - name: Fetch PM2 Status Snapshot (Failure)
+        if: failure()
+        run: |
+          ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "pm2 status > ~/pm2_status.log; pm2 list >> ~/pm2_status.log; pm2 show cue-wellness-backend >> ~/pm2_status.log; node -v >> ~/pm2_status.log; npm -v >> ~/pm2_status.log; pm2 -v >> ~/pm2_status.log" || true
+          scp -o StrictHostKeyChecking=no -i id_rsa \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/pm2_status.log ./pm2_status.log || echo "No pm2_status.log to copy"
+
       - name: Upload Logs Artifact (Failure)
         if: failure()
         uses: actions/upload-artifact@v4
@@ -172,10 +181,11 @@ jobs:
               🌍 <a href="https://backend.cuewellness.net/">Visit Live Backend</a>
             </p>
             <p>📎 PM2 status report is attached.</p>
-          to: ${{ env.NOTIFY_EMAILS }}
+          to: ${{ env.NOTIFY_EMAILS_SUCCESS }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
           attachments: ./pm2_status.log
+          cc: ${{ env.NOTIFY_EMAILS_FAILURE }}
 
       # --- Notify failure ---
       - name: Notify Failure
@@ -203,8 +213,29 @@ jobs:
               🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
               📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
+            <p>
+              Attached: <b>PM2 error logs</b> and <b>PM2 status snapshot</b> for troubleshooting.
+            </p>
+            <p>🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Full GitHub Actions Logs</a></p>
+            <p><i>Please investigate immediately.</i></p>
             <p>📎 PM2 error logs are attached.</p>
-          to: ${{ env.NOTIFY_EMAILS }}
+          to: ${{ env.NOTIFY_EMAILS_FAILURE }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
-          attachments: ./pm2_error.log
+          attachments: ./pm2_error.log,./pm2_status.log
+          cc: ${{ env.NOTIFY_EMAILS_SUCCESS }}
+
+      # --- Cleanup SSH key ---
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f id_rsa
+
+      - name: Final Status
+        if: always()
+        run: |
+          echo "Workflow completed with status: ${{ job.status }}"
+          echo "Check the logs at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ job.status }}" == "failure" ]; then
+            exit 1
+          fi
+          exit 0
