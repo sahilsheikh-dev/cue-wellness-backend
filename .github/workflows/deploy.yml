@@ -21,7 +21,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           envs: ALL # 👈 sends all GitHub repo secrets + variables to your server
           script: |
-            cd ~/apps/cue-wellness-backend
+            cd ~/cue-wellness-backend
             if [ ! -d ".git" ]; then
               git clone git@github.com:sahilsheikh-dev/cue-backend.git .
             else
