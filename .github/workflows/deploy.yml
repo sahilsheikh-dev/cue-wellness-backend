@@ -1,4 +1,4 @@
-name: Deploy Cue Wellness Backend to Server
+pname: Deploy Cue Wellness Backend to Server
 
 on:
   push:
@@ -237,8 +237,7 @@ jobs:
               Attached: <b>PM2 error logs</b> and <b>PM2 status snapshot</b> for troubleshooting.
             </p>
             <p>🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" target="_blank" rel="noopener">View Full GitHub Actions Logs</a></p>
-            <p><i>Please investigate immediately.</i></p>
-            <p>📎 PM2 error logs are attached.</p>
+            <h2>Please Investigate Immediately.</h2>
           to: ${{ vars.NOTIFY_EMAILS_FAILURE }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
