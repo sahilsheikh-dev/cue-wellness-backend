@@ -189,8 +189,9 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Hostname: <b><a href="http://${{ steps.get_hostname.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a></b><br/>
+              🌐 Hostname: <b>${{ steps.get_hostname.outputs.value }}</b><br/>
               📡 Host IP: <b><a href="http://${{ steps.get_hostip.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostip.outputs.value }}</a></b><br/>
+              🛠️ Service Name: <b>${{ steps.service_name.outputs.value }}</b>
             </p>
             <p>
               🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" target="_blank" rel="noopener">
@@ -228,8 +229,9 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Hostname: <b><a href="http://${{ steps.get_hostname.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a></b><br/>
+              🌐 Hostname: <b>${{ steps.get_hostname.outputs.value }}</b><br/>
               📡 Host IP: <b><a href="http://${{ steps.get_hostip.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostip.outputs.value }}</a></b><br/>
+              🛠️ Service Name: <b>${{ steps.service_name.outputs.value }}</b>
             </p>
             <p>
               Attached: <b>PM2 error logs</b> and <b>PM2 status snapshot</b> for troubleshooting.
