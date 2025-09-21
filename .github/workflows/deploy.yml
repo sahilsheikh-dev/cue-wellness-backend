@@ -36,7 +36,8 @@ jobs:
       - name: Capture Host IP
         id: get_hostip
         run: |
-          HOSTIP=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname -I | awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\./) {print $i; exit}}'")
+          HOSTIP=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "hostname -I | awk '{for(i=1;i<=NF;i++) if (\$i ~ /^[0-9]+\./) {print \$i; exit}}'")
           echo "value=$HOSTIP" >> $GITHUB_OUTPUT
           echo "Captured Host IP: $HOSTIP"
 
