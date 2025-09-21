@@ -13,8 +13,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # --- Set Deployment Timestamp ---
       - name: Set Deployment Timestamp
-        run: echo "DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+        id: set_time
+        run: echo "value=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
       # --- Setup SSH key once ---
       - name: Prepare SSH Key
@@ -24,9 +26,10 @@ jobs:
 
       # --- Capture Hostname from Server ---
       - name: Capture Hostname
+        id: get_hostname
         run: |
           HOSTNAME=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname")
-          echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
+          echo "value=$HOSTNAME" >> $GITHUB_OUTPUT
           echo "Captured Hostname: $HOSTNAME"
 
       # --- Deploy ---
@@ -157,11 +160,11 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})"
+          subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>✅ Deployment Successful</h2>
-            <p>The deployment to <b>${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})</b> was successful.</p>
-            <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
+            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> was successful.</p>
+            <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
               <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">
@@ -171,7 +174,7 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
+              🌐 Host: <b>${{ steps.get_hostname.outputs.value }}</b><br/>
               📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>
@@ -181,11 +184,11 @@ jobs:
               🌍 <a href="https://backend.cuewellness.net/">Visit Live Backend</a>
             </p>
             <p>📎 PM2 status report is attached.</p>
-          to: ${{ env.NOTIFY_EMAILS_SUCCESS }}
+          to: ${{ vars.NOTIFY_EMAILS_SUCCESS }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
           attachments: ./pm2_status.log
-          cc: ${{ env.NOTIFY_EMAILS_FAILURE }}
+          cc: ${{ vars.NOTIFY_EMAILS_FAILURE }}
 
       # --- Notify failure ---
       - name: Notify Failure
@@ -196,11 +199,11 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})"
+          subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>❌ Deployment Failed</h2>
-            <p>The deployment to <b>${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})</b> failed.</p>
-            <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
+            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> failed.</p>
+            <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
               <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">
@@ -210,7 +213,7 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
+              🌐 Host: <b>${{ steps.get_hostname.outputs.value }}</b><br/>
               📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>
@@ -219,11 +222,11 @@ jobs:
             <p>🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Full GitHub Actions Logs</a></p>
             <p><i>Please investigate immediately.</i></p>
             <p>📎 PM2 error logs are attached.</p>
-          to: ${{ env.NOTIFY_EMAILS_FAILURE }}
+          to: ${{ vars.NOTIFY_EMAILS_FAILURE }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
           attachments: ./pm2_error.log,./pm2_status.log
-          cc: ${{ env.NOTIFY_EMAILS_SUCCESS }}
+          cc: ${{ vars.NOTIFY_EMAILS_SUCCESS }}
 
       # --- Cleanup SSH key ---
       - name: Cleanup SSH key
