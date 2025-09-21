@@ -45,5 +45,4 @@ jobs:
             pm2 reload cue-wellness-backend --update-env
             pm2 save
             pm2 status
-            pm2 logs cue-wellness-backend --lines 10
             echo "Deployment completed successfully"
