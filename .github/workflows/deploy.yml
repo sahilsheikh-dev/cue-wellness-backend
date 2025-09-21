@@ -172,7 +172,7 @@ jobs:
               🌍 <a href="https://backend.cuewellness.net/">Visit Live Backend</a>
             </p>
             <p>📎 PM2 status report is attached.</p>
-          to: ${{ secrets.NOTIFY_EMAIL }}
+          to: ${{ env.NOTIFY_EMAILS }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
           attachments: ./pm2_status.log
@@ -204,7 +204,7 @@ jobs:
               📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>📎 PM2 error logs are attached.</p>
-          to: ${{ secrets.NOTIFY_EMAIL }}
+          to: ${{ env.NOTIFY_EMAILS }}
           from: ${{ secrets.EMAIL_USERNAME }}
           secure: true
           attachments: ./pm2_error.log
