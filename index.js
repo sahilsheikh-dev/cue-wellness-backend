@@ -2,36 +2,49 @@
 require("dotenv").config();
 const { startServer } = require("./src/server");
 
-// index.js
-
 function logDeploymentEnvVariables() {
-  const envVars = {
-    SERVER_USER: process.env.SERVER_USER,
-    SERVER_IP: process.env.SERVER_IP,
-    SERVER_SSH_KEY: process.env.SERVER_SSH_KEY,
-    EMAIL_USERNAME: process.env.EMAIL_USERNAME,
-    EMAIL_PASSWORD: process.env.EMAIL_PASSWORD,
-    NOTIFY_EMAILS_SUCCESS: process.env.NOTIFY_EMAILS_SUCCESS,
-    NOTIFY_EMAILS_FAILURE: process.env.NOTIFY_EMAILS_FAILURE,
-    GITHUB_SHA: process.env.GITHUB_SHA,
-    GITHUB_ACTOR: process.env.GITHUB_ACTOR,
-    GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
-    GITHUB_SERVER_URL: process.env.GITHUB_SERVER_URL,
-    DEPLOYMENT_TIMESTAMP: process.env.DEPLOYMENT_TIMESTAMP,
-    SERVICE_NAME: process.env.SERVICE_NAME,
-    HOSTNAME: process.env.HOSTNAME,
-    HOSTIP: process.env.HOSTIP,
-  };
+  const keys = [
+    "CRYPTR_SECRET",
+    "EMAIL_PASSWORD",
+    "EMAIL_USERNAME",
+    "REMOTE_DB_PASS",
+    "REMOTE_DB_USER",
+    "SERVER_IP",
+    "SERVER_USER",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_PHONE_NUMBER",
+    "TWILIO_VERIFY_SERVICE_SID",
+    "ALLOWED_ORIGINS",
+    "CERTIFICATES_PATH",
+    "DB_MODE",
+    "MONGO_URI_LOCAL",
+    "NOTIFY_EMAILS_FAILURE",
+    "NOTIFY_EMAILS_SUCCESS",
+    "OTP_EXPIRE_MINUTES",
+    "OTP_MAX_ATTEMPTS",
+    "PORT",
+    "PROFILE_PIC_PATH",
+    "REMOTE_DB_IP",
+    "REMOTE_DB_NAME",
+    "UPLOADS_BASE_PATH",
+    "WORK_IMAGES_PATH",
+    "DEPLOYMENT_TIMESTAMP",
+    "SERVICE_NAME",
+    "HOSTNAME",
+    "HOSTIP",
+    "GITHUB_SHA",
+    "GITHUB_ACTOR",
+    "GITHUB_REPOSITORY",
+    "GITHUB_SERVER_URL"
+  ];
 
   console.log("=== Deployment Environment Variables ===");
-  for (const [key, value] of Object.entries(envVars)) {
-    console.log(`${key}: ${value || "NOT SET"}`);
-  }
+  keys.forEach(key => console.log(`${key}: ${process.env[key] || "NOT SET"}`));
   console.log("=======================================");
 }
-
-// Call this function at startup
 logDeploymentEnvVariables();
+
 
 
 // Start server
