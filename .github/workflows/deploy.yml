@@ -1,4 +1,4 @@
-name: Deploy Cue Wellness Backend to GoDaddy Server
+name: Deploy Cue Wellness Backend to Server
 
 on:
   push:
@@ -22,8 +22,15 @@ jobs:
           echo "${{ secrets.SERVER_SSH_KEY }}" > id_rsa
           chmod 600 id_rsa
 
+      # --- Capture Hostname from Server ---
+      - name: Capture Hostname
+        run: |
+          HOSTNAME=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname")
+          echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
+          echo "Captured Hostname: $HOSTNAME"
+
       # --- Deploy ---
-      - name: Deploy to GoDaddy Server via SSH
+      - name: Deploy to Server via SSH
         id: deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -32,12 +39,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           envs: ALL
           script: |
-
-            echo "🚀 Starting deployment script"
-            # capture host + IP
-            HOSTNAME=$(hostname)
-            echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
-
             set -e
             mkdir -p ~/apps/cue-wellness-backend
             cd ~/apps/cue-wellness-backend
@@ -147,10 +148,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ Deployment Successful: Cue Wellness Backend on (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}"
+          subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>✅ Deployment Successful</h2>
-            <p>The deployment to <b> (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}</b> was successful.</p>
+            <p>The deployment to <b>${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})</b> was successful.</p>
             <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
             <p>
               <b>Commit:</b>
@@ -161,8 +162,8 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Host: <b>${{ secrets.SERVER_IP }}</b><br/>
-              📡 IP: <b>${{ env.HOSTNAME }}</b><br/>
+              🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
+              📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>
               🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
@@ -185,10 +186,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "❌ Deployment Failed: Cue Wellness Backend on (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}"
+          subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>❌ Deployment Failed</h2>
-            <p>The deployment to <b> (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}</b> failed.</p>
+            <p>The deployment to <b>${{ env.HOSTNAME }} (${{ secrets.SERVER_IP }})</b> failed.</p>
             <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
             <p>
               <b>Commit:</b>
@@ -199,13 +200,8 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Host: <b>${{ secrets.SERVER_IP }}</b><br/>
-              📡 IP: <b>${{ env.HOSTNAME }}</b><br/>
-            </p>
-            <p>
-              🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
-                View Full GitHub Actions Logs
-              </a>
+              🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
+              📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>📎 PM2 error logs are attached.</p>
           to: ${{ secrets.NOTIFY_EMAIL }}
