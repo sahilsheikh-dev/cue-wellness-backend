@@ -39,11 +39,7 @@ jobs:
             echo "Installing dependencies"
             npm install --omit=dev
 
-            # restart app with zero downtime using PM2 cluster mode
-            echo "Reloading PM2 process"
-            pm2 start index.js --name cue-wellness-backend -i max --update-env || true
-
-            # restart app with zero downtime using PM2 cluster mode
+            # start/reload app with zero downtime using PM2 cluster mode
             if pm2 describe cue-wellness-backend > /dev/null; then
               echo "Reloading existing PM2 process"
               pm2 reload cue-wellness-backend --update-env
