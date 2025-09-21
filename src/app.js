@@ -42,7 +42,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// / default route
+// / default route of the application
 app.get("/", (req, res) => {
   res.send("Welcome to Cue Wellness Backend API 🚀");
 });
