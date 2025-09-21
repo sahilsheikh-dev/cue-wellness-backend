@@ -27,11 +27,17 @@ jobs:
         id: deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           envs: ALL
           script: |
+
+            echo "🚀 Starting deployment script"
+            # capture host + IP
+            HOSTNAME=$(hostname)
+            echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
+
             set -e
             mkdir -p ~/apps/cue-wellness-backend
             cd ~/apps/cue-wellness-backend
@@ -85,7 +91,7 @@ jobs:
         if: failure() && steps.deploy.outcome == 'success'
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
@@ -104,10 +110,10 @@ jobs:
       - name: Fetch PM2 Logs on Failure
         if: failure()
         run: |
-          ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
             "pm2 logs cue-wellness-backend --lines 100 --nostream > ~/pm2_error.log || true"
           scp -o StrictHostKeyChecking=no -i id_rsa \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/pm2_error.log ./pm2_error.log || true
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/pm2_error.log ./pm2_error.log || true
 
       - name: Upload Logs Artifact (Failure)
         if: failure()
@@ -120,10 +126,10 @@ jobs:
       - name: Fetch PM2 Status on Success
         if: success()
         run: |
-          ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
             "pm2 status > ~/pm2_status.log; pm2 list >> ~/pm2_status.log; pm2 show cue-wellness-backend >> ~/pm2_status.log; node -v >> ~/pm2_status.log; npm -v >> ~/pm2_status.log; pm2 -v >> ~/pm2_status.log"
           scp -o StrictHostKeyChecking=no -i id_rsa \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/pm2_status.log ./pm2_status.log || true
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/pm2_status.log ./pm2_status.log || true
 
       - name: Upload Status Artifact (Success)
         if: success()
@@ -141,10 +147,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ Deployment Successful: Cue Wellness Backend"
+          subject: "✅ Deployment Successful: Cue Wellness Backend on (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}"
           html_body: |
             <h2>✅ Deployment Successful</h2>
-            <p>The deployment to the GoDaddy server was successful.</p>
+            <p>The deployment to <b> (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}</b> was successful.</p>
             <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
             <p>
               <b>Commit:</b>
@@ -153,6 +159,10 @@ jobs:
               </a><br/>
               <b>Author:</b> ${{ github.actor }}<br/>
               <b>Message:</b> ${{ github.event.head_commit.message }}
+            </p>
+            <p>
+              🌐 Host: <b>${{ secrets.SERVER_IP }}</b><br/>
+              📡 IP: <b>${{ env.HOSTNAME }}</b><br/>
             </p>
             <p>
               🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
@@ -175,10 +185,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "❌ Deployment Failed: Cue Wellness Backend"
+          subject: "❌ Deployment Failed: Cue Wellness Backend on (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}"
           html_body: |
             <h2>❌ Deployment Failed</h2>
-            <p>The deployment to the GoDaddy server failed.</p>
+            <p>The deployment to <b> (${{ env.HOSTNAME }}) ${{ secrets.SERVER_IP }}</b> failed.</p>
             <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
             <p>
               <b>Commit:</b>
@@ -187,6 +197,10 @@ jobs:
               </a><br/>
               <b>Author:</b> ${{ github.actor }}<br/>
               <b>Message:</b> ${{ github.event.head_commit.message }}
+            </p>
+            <p>
+              🌐 Host: <b>${{ secrets.SERVER_IP }}</b><br/>
+              📡 IP: <b>${{ env.HOSTNAME }}</b><br/>
             </p>
             <p>
               🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
