@@ -163,11 +163,12 @@ jobs:
           subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>✅ Deployment Successful</h2>
-            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> was successful.</p>
+            <p>The deployment to <b><a href="http://${{ secrets.SERVER_IP }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a>
+             (${{ secrets.SERVER_IP }})</b> was successful.</p>
             <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
-              <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">
+              <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" target="_blank" rel="noopener">
                 ${{ github.sha }}
               </a><br/>
               <b>Author:</b> ${{ github.actor }}<br/>
@@ -178,10 +179,10 @@ jobs:
               📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>
-              🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
+              🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" target="_blank" rel="noopener">
                 View Full GitHub Actions Logs
               </a><br/>
-              🌍 <a href="https://backend.cuewellness.net/">Visit Live Backend</a>
+              🌍 Visit Live Backend - <a href="https://backend.cuewellness.net/" target="_blank" rel="noopener">https://backend.cuewellness.net/</a>
             </p>
             <p>📎 PM2 status report is attached.</p>
           to: ${{ vars.NOTIFY_EMAILS_SUCCESS }}
@@ -202,11 +203,12 @@ jobs:
           subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>❌ Deployment Failed</h2>
-            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> failed.</p>
+            <p>The deployment to <b><a href="http://${{ secrets.SERVER_IP }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a>
+             (${{ secrets.SERVER_IP }})</b> failed.</p>
             <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
-              <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">
+              <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" target="_blank" rel="noopener">
                 ${{ github.sha }}
               </a><br/>
               <b>Author:</b> ${{ github.actor }}<br/>
@@ -219,7 +221,7 @@ jobs:
             <p>
               Attached: <b>PM2 error logs</b> and <b>PM2 status snapshot</b> for troubleshooting.
             </p>
-            <p>🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Full GitHub Actions Logs</a></p>
+            <p>🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" target="_blank" rel="noopener">View Full GitHub Actions Logs</a></p>
             <p><i>Please investigate immediately.</i></p>
             <p>📎 PM2 error logs are attached.</p>
           to: ${{ vars.NOTIFY_EMAILS_FAILURE }}
