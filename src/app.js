@@ -37,7 +37,12 @@ app.use("/admin", adminRoutes);
 app.use("/otp", otpRoutes);
 app.use("/coach", coachRoutes);
 
-// Health check / default route
+// Health check /health default route
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+// / default route
 app.get("/", (req, res) => {
   res.send("Welcome to Cue Wellness Backend API 🚀");
 });

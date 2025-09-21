@@ -13,7 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set Deployment Timestamp
+        id: set_timestamp
+        run: echo "DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+
       - name: Deploy to GoDaddy Server via SSH
+        id: deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -21,33 +26,193 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           envs: ALL
           script: |
+            set -e
             # ensure folder exists
             mkdir -p ~/apps/cue-wellness-backend
             cd ~/apps/cue-wellness-backend
 
+            # backup PM2 state
+            echo "📦 Backing up PM2 process list"
+            pm2 save
+            cp ~/.pm2/dump.pm2 ~/.pm2/dump.pm2.bak || true
+
             # pull latest code
             if [ ! -d ".git" ]; then
-              echo "First time setup: cloning repository"
+              echo "🆕 First time setup: cloning repository"
               git clone git@github.com:sahilsheikh-dev/cue-wellness-backend.git .
             else
-              echo "Pulling latest changes"
+              echo "⬇️ Pulling latest changes"
               git reset --hard
               git pull origin main
             fi
 
-            # install dependencies (new recommended flag)
-            echo "Installing dependencies"
+            # install dependencies
+            echo "📦 Installing dependencies"
             npm install --omit=dev
 
-            # start/reload app with zero downtime using PM2 cluster mode
+            # reload/start app with PM2
             if pm2 describe cue-wellness-backend > /dev/null; then
-              echo "Reloading existing PM2 process"
+              echo "♻️ Reloading PM2 process"
               pm2 reload cue-wellness-backend --update-env
             else
-              echo "Starting new PM2 process"
+              echo "🚀 Starting PM2 process"
               pm2 start index.js --name cue-wellness-backend -i max --update-env
             fi
 
             pm2 save
             pm2 status
-            echo "Deployment completed successfully"
+            echo "✅ Deployment step completed"
+
+      - name: Health Check
+        id: health
+        run: |
+          echo "⏳ Waiting for backend..."
+          for i in {1..10}; do
+            if curl -skf https://backend.cuewellness.net/health; then
+              echo "✅ Health check passed"
+              exit 0
+            else
+              echo "⚠️ Attempt $i failed"
+              sleep 5
+            fi
+          done
+          echo "❌ Health check failed"
+          exit 1
+
+      - name: Rollback if Health Check Failed
+        if: failure() && steps.deploy.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "🚨 Health check failed, rolling back..."
+            if [ -f ~/.pm2/dump.pm2.bak ]; then
+              cp ~/.pm2/dump.pm2.bak ~/.pm2/dump.pm2
+              pm2 resurrect
+              pm2 save
+              echo "✅ Rollback completed"
+            else
+              echo "⚠️ No backup found!"
+              exit 1
+            fi
+
+      # Failure logs
+      - name: Fetch PM2 Logs on Failure
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            pm2 logs cue-wellness-backend --lines 100 --nostream > ~/pm2_error.log || echo "No logs"
+        continue-on-error: true
+
+      - name: Copy Logs to Runner
+        if: failure()
+        run: |
+          scp -o StrictHostKeyChecking=no -i ${{ secrets.SERVER_SSH_KEY }} \
+          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/pm2_error.log ./pm2_error.log || echo "No logs to copy"
+
+      - name: Upload Logs Artifact (Failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pm2-error-logs
+          path: ./pm2_error.log
+
+      # Success artifacts
+      - name: Fetch PM2 Status on Success
+        if: success()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            pm2 status > ~/pm2_status.log
+            pm2 list >> ~/pm2_status.log
+            pm2 show cue-wellness-backend >> ~/pm2_status.log
+            node -v >> ~/pm2_status.log
+            npm -v >> ~/pm2_status.log
+            pm2 -v >> ~/pm2_status.log
+
+      - name: Copy PM2 Status to Runner
+        if: success()
+        run: |
+          scp -o StrictHostKeyChecking=no -i ${{ secrets.SERVER_SSH_KEY }} \
+          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/pm2_status.log ./pm2_status.log || echo "No status to copy"
+
+      - name: Upload Status Artifact (Success)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pm2-status-report
+          path: ./pm2_status.log
+
+      # ---- Notifications ----
+      - name: Notify Success
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "✅ Deployment Successful: Cue Wellness Backend"
+          html_body: |
+            <h2>✅ Deployment Successful</h2>
+            <p>The deployment to the GoDaddy server was successful.</p>
+            <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
+            <p>
+              <b>Commit:</b>
+              <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">
+                ${{ github.sha }}
+              </a><br/>
+              <b>Author:</b> ${{ github.actor }}<br/>
+              <b>Message:</b> ${{ github.event.head_commit.message }}
+            </p>
+            <p>
+              🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
+                View Full GitHub Actions Logs
+              </a><br/>
+              🌍 <a href="https://backend.cuewellness.net/">Visit Live Backend</a>
+            </p>
+            <p>📊 PM2 status report is available in Actions artifacts.</p>
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          secure: true
+
+      - name: Notify Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "❌ Deployment Failed: Cue Wellness Backend"
+          html_body: |
+            <h2>❌ Deployment Failed</h2>
+            <p>The deployment to the GoDaddy server failed.</p>
+            <p><b>Time:</b> ${{ env.DEPLOY_TIME }}</p>
+            <p>
+              <b>Commit:</b>
+              <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">
+                ${{ github.sha }}
+              </a><br/>
+              <b>Author:</b> ${{ github.actor }}<br/>
+              <b>Message:</b> ${{ github.event.head_commit.message }}
+            </p>
+            <p>
+              🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
+                View Full GitHub Actions Logs
+              </a>
+            </p>
+            <p>Please see attached PM2 logs. Full logs are also stored as artifact.</p>
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          secure: true
+          attachments: ./pm2_error.log
