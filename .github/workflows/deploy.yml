@@ -1,4 +1,7 @@
-name: Deploy Cue Wellness Backend to Server
+name: Deploy Cue Wellness Backend
+
+# 👇 This sets the run name dynamically in the Actions UI
+run-name: Deploy Cue Wellness Backend to ${{ github.actor }}'s server
 
 on:
   push:
@@ -22,12 +25,14 @@ jobs:
           echo "${{ secrets.SERVER_SSH_KEY }}" > id_rsa
           chmod 600 id_rsa
 
-      # --- Capture Hostname from Server ---
-      - name: Capture Hostname
+      # --- Capture Hostname + Update run-name ---
+      - name: Capture Hostname and Update Run Name
+        id: hostinfo
         run: |
           HOSTNAME=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname")
           echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
-          echo "Captured Hostname: $HOSTNAME"
+          echo "Run name: Deploy Cue Wellness Backend to $HOSTNAME (${{ secrets.SERVER_IP }})"
+        shell: bash
 
       # --- Deploy ---
       - name: Deploy to Server via SSH
@@ -165,12 +170,6 @@ jobs:
               🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
               📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
-            <p>
-              🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">
-                View Full GitHub Actions Logs
-              </a><br/>
-              🌍 <a href="https://backend.cuewellness.net/">Visit Live Backend</a>
-            </p>
             <p>📎 PM2 status report is attached.</p>
           to: ${{ secrets.NOTIFY_EMAIL }}
           from: ${{ secrets.EMAIL_USERNAME }}
@@ -198,10 +197,6 @@ jobs:
               </a><br/>
               <b>Author:</b> ${{ github.actor }}<br/>
               <b>Message:</b> ${{ github.event.head_commit.message }}
-            </p>
-            <p>
-              🌐 Host: <b>${{ env.HOSTNAME }}</b><br/>
-              📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
             </p>
             <p>📎 PM2 error logs are attached.</p>
           to: ${{ secrets.NOTIFY_EMAIL }}
