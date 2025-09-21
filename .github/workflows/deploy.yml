@@ -32,6 +32,14 @@ jobs:
           echo "value=$HOSTNAME" >> $GITHUB_OUTPUT
           echo "Captured Hostname: $HOSTNAME"
 
+      # --- Capture Host IP from Server ---
+      - name: Capture Host IP
+        id: get_hostip
+        run: |
+          HOSTIP=$(ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "hostname -I | awk '{print $1}'")
+          echo "value=$HOSTIP" >> $GITHUB_OUTPUT
+          echo "Captured Host IP: $HOSTIP"
+
       # --- Deploy ---
       - name: Deploy to Server via SSH
         id: deploy
@@ -163,8 +171,7 @@ jobs:
           subject: "✅ Deployment Successful: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>✅ Deployment Successful</h2>
-            <p>The deployment to <b><a href="http://${{ secrets.SERVER_IP }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a>
-             (${{ secrets.SERVER_IP }})</b> was successful.</p>
+            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> was successful.</p>
             <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
@@ -175,8 +182,8 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Host: <b>${{ steps.get_hostname.outputs.value }}</b><br/>
-              📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
+              🌐 Hostname: <b><a href="http://${{ steps.get_hostname.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a></b><br/>
+              📡 Host IP: <b><a href="http://${{ steps.get_hostip.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostip.outputs.value }}</a></b><br/>
             </p>
             <p>
               🔍 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" target="_blank" rel="noopener">
@@ -203,8 +210,7 @@ jobs:
           subject: "❌ Deployment Failed: Cue Wellness Backend on ${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})"
           html_body: |
             <h2>❌ Deployment Failed</h2>
-            <p>The deployment to <b><a href="http://${{ secrets.SERVER_IP }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a>
-             (${{ secrets.SERVER_IP }})</b> failed.</p>
+            <p>The deployment to <b>${{ steps.get_hostname.outputs.value }} (${{ secrets.SERVER_IP }})</b> failed.</p>
             <p><b>Time:</b> ${{ steps.set_time.outputs.value }}</p>
             <p>
               <b>Commit:</b>
@@ -215,8 +221,8 @@ jobs:
               <b>Message:</b> ${{ github.event.head_commit.message }}
             </p>
             <p>
-              🌐 Host: <b>${{ steps.get_hostname.outputs.value }}</b><br/>
-              📡 IP: <b>${{ secrets.SERVER_IP }}</b><br/>
+              🌐 Hostname: <b><a href="http://${{ steps.get_hostname.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostname.outputs.value }}</a></b><br/>
+              📡 Host IP: <b><a href="http://${{ steps.get_hostip.outputs.value }}" target="_blank" rel="noopener">${{ steps.get_hostip.outputs.value }}</a></b><br/>
             </p>
             <p>
               Attached: <b>PM2 error logs</b> and <b>PM2 status snapshot</b> for troubleshooting.
