@@ -51,7 +51,7 @@ router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
 // Uploads
 router.post("/upload-profile-picture", verifyCoach(), uploadProfilePic.single("profilePicture"), coachController.uploadProfilePicture);
 router.post("/upload-certificates", verifyCoach(), uploadCertificates.array("certificates", 10), coachController.uploadCertificates);
-router.post("/upload-work-images", verifyCoach(), uploadWorkImages.array("workImages", 3), coachController.uploadWorkImages);
+router.post("/upload-work-images", verifyCoach(), uploadWorkImages.array("workImages", 3), coachController.uploadWorkAssets);
 
 // Agreement & sessions
 router.post("/save-agreement", verifyCoach(), coachController.saveAgreement);

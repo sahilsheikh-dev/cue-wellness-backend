@@ -200,7 +200,7 @@ async function setProfilePicture(id, filename) {
 }
 
 // Set Work Images (max 3)
-async function setWorkImages(id, files) {
+async function setWorkAssets(id, files) {
   const workImages = files.map((f) => ({
     type: f.mimetype.startsWith("image") ? "image" : "video",
     path: f.filename,
@@ -223,5 +223,5 @@ module.exports = {
   toggleLikeActivity,
   toggleSaveCoach,
   setProfilePicture,
-  setWorkImages,
+  setWorkAssets,
 };
