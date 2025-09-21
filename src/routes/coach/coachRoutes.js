@@ -40,6 +40,8 @@ router.post("/signup", coachController.signup);
 router.post("/verify-otp", coachController.verifyOtp);
 router.post("/login", coachController.login);
 router.post("/logout", coachController.logout);
+router.post("/check-cookie", coachController.checkCookie);
+router.post("build-profile",coachController.buildProfile)
 // router.post("/check-cookie", coachController.checkCookie);     // PENDING
 
 // Authenticated coach routes
@@ -67,5 +69,7 @@ router.post("/unsave-coach", verifyCoach(), coachController.unsaveCoach);
 router.get("/list", verifyAdmin(permissions["coach:list"]), coachController.list);
 router.get("/get/:id", verifyAdmin(permissions["coach:get"]), coachController.getById);
 router.put("/admin/change-status/:id", verifyAdmin(permissions["coach:changeStatus"]), coachController.changeStatus);
+router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
+router.updatePassword("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
 
 module.exports = router;

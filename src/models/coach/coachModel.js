@@ -1,27 +1,5 @@
 const mongoose = require("mongoose");
 
-function sessionSchema() {
-  return {
-    avg_time: String,
-    avg_price: String,
-    currency: String,
-    slots: [
-      {
-        date: { type: Date, required: true },
-        time: [
-          {
-            from: String,
-            to: String,
-            booking_status: { type: String, default: "false" },
-            booked: String,
-            booking_id: String,
-          },
-        ],
-      },
-    ],
-  };
-}
-
 const CoachSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -54,21 +32,30 @@ const CoachSchema = new mongoose.Schema(
     category: [
       {
         id: { type: String, required: true },
-        levelOfExpertise: [{ type: String, required: true }],
-        session: {
-          beginner_virtual_private_session: sessionSchema(),
-          beginner_virtual_group_session: sessionSchema(),
-          beginner_inperson_private_session: sessionSchema(),
-          beginner_inperson_group_session: sessionSchema(),
-          intermediate_virtual_private_session: sessionSchema(),
-          intermediate_virtual_group_session: sessionSchema(),
-          intermediate_inperson_private_session: sessionSchema(),
-          intermediate_inperson_group_session: sessionSchema(),
-          advanced_virtual_private_session: sessionSchema(),
-          advanced_virtual_group_session: sessionSchema(),
-          advanced_inperson_private_session: sessionSchema(),
-          advanced_inperson_group_session: sessionSchema(),
-        },
+        coach_experties_level: [{ type: String, required: true }],
+        session: [
+          {
+            client_experties_level: String,
+            session_type: String,
+            avg_time: String,
+            avg_price: String,
+            currency: String,
+            slots: [
+              {
+                date: { type: Date, required: true },
+                time: [
+                  {
+                    from: String,
+                    to: String,
+                    booking_status: { type: String, default: "false" },
+                    booked: String,
+                    booking_id: String,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       },
     ],
 
