@@ -179,13 +179,6 @@ async function toggleSaveCoach(coachId, savedCoachId, action = "add") {
 // helper: format coach for responses (decrypt text fields)
 function formatCoach(doc) {
   const d = doc.toObject();
-  // try {
-  //   d.name = decrypt(d.name);
-  // } catch (e) {}
-  // try {
-  //   d.email = d.email ? decrypt(d.email) : "";
-  // } catch (e) {}
-  // never send password
   delete d.password;
   return d;
 }

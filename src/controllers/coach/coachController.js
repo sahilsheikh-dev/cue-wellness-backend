@@ -682,13 +682,6 @@ const checkCookie = async (req, res) => {
     // Optional: decrypt fields safely
     const coachData = {
       id: coach._id,
-      // name: (() => {
-      //   try {
-      //     return decrypt(coach.name);
-      //   } catch (e) {
-      //     return coach.name;
-      //   }
-      // })
       name: coach.name,
       mobile: coach.mobile,
       status: coach.status,

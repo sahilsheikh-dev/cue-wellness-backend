@@ -65,8 +65,8 @@ router.post("/save-coach", verifyCoach(), coachController.saveCoach);
 router.post("/unsave-coach", verifyCoach(), coachController.unsaveCoach);
 
 // Admin-only action: change status
-router.get("/list", verifyAdmin(permissions["coach:list"]), coachController.list);
-router.get("/get/:id", verifyAdmin(permissions["coach:get"]), coachController.getById);
+router.get("/admin/list", verifyAdmin(permissions["coach:list"]), coachController.list);
+router.get("/admin/get/:id", verifyAdmin(permissions["coach:get"]), coachController.getById);
 router.put("/admin/change-status/:id", verifyAdmin(permissions["coach:changeStatus"]), coachController.changeStatus);
 
 module.exports = router;
