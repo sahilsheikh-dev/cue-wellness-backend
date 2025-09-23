@@ -41,16 +41,13 @@ router.post("/verify-otp", coachController.verifyOtp);
 router.post("/login", coachController.login);
 router.post("/logout", coachController.logout);
 router.post("/check-cookie", coachController.checkCookie);
-router.post("build-profile",coachController.buildProfile)
-// router.post("/check-cookie", coachController.checkCookie);     // PENDING
+router.post("/build-profile",coachController.buildProfile)
 
 // Authenticated coach routes
 router.get("/gerMyInfo", verifyCoach(), coachController.getPersonalInfo);
 router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
 router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
 router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
-// router.put("/changeMyPassword", verifyCoach(), coachController.changePassword);    // PENDING
-// router.delete("/deleteMyAccount", verifyCoach(), coachController.deleteAccount);    // PENDING
 
 // Uploads
 router.post("/upload-profile-picture", verifyCoach(), uploadProfilePic.single("profilePicture"), coachController.uploadProfilePicture);

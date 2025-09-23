@@ -180,10 +180,10 @@ async function toggleSaveCoach(coachId, savedCoachId, action = "add") {
 function formatCoach(doc) {
   const d = doc.toObject();
   try {
-    d.name = decrypt(d.name);
+    d.name = d.name;
   } catch (e) {}
   try {
-    d.email = d.email ? decrypt(d.email) : "";
+    d.email = d.email ? d.email : "";
   } catch (e) {}
   // never send password
   delete d.password;
@@ -287,5 +287,5 @@ module.exports = {
   setWorkAssets,
   buildProfile,
   deleteCoach,
-  updatePassword
+  updatePassword,
 };
