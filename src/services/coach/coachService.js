@@ -5,22 +5,19 @@ const getId = require("../../utils/getId.util");
 const validateInputs = require("../../utils/validateInputs.util");
 
 // Create (signup) - unverified coach
-async function createUnverifiedCoach({ name, mobile, password, email }) {
-  if (!validateInputs(name, mobile, password))
+async function createUnverifiedCoach({ name, email, password }) {
+  if (!validateInputs(name, email, password))
     throw new Error("Name/mobile/password required");
 
   // check existing mobile
-  const exists = await Coach.findOne({ mobile });
-  if (exists) throw new Error("Mobile already registered");
+  const exists = await Coach.findOne({email});
+  console.log("If exist {}", exists);
+  if (exists) throw new Error("Email already registered");
 
   const newCoach = new Coach({
-    name: encrypt(name),
-    mobile,
+    name: name,
+    email: email,
     password: encrypt(password),
-    email: email ? encrypt(email) : "",
-    status: "unverified",
-    token: null,
-    mobileVerified: false,
   });
 
   await newCoach.save();

@@ -10,8 +10,8 @@ const Coach = require("../../models/coach/coachModel");
 // Signup — create unverified coach and send OTP (userType=coach)
 async function signup(req, res) {
   try {
-    const { name, mobile, password, email } = req.body;
-    if (!name || !mobile || !password) {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
       return res
         .status(400)
         .send({ message: "Please fill all fields", error: "Bad Request" });
@@ -20,21 +20,17 @@ async function signup(req, res) {
     // create coach record (unverified)
     const newCoach = await coachService.createUnverifiedCoach({
       name,
-      mobile,
-      password,
       email,
-    });
-
-    // send OTP for this phone + userType=coach; include coachId in meta so we can map after verification
-    const otpResult = await otpService.createAndSendOtp(mobile, {
-      userType: "coach",
-      meta: { coachId: newCoach._id.toString() },
+      password
     });
 
     return res.status(201).send({
-      otpId: otpResult.otpId,
-      message: "Signup successful, OTP sent",
-      error: "Created",
+      message: "Signup successful",
+      data: {
+        id: newCoach._id,
+        name: newCoach.name,
+        email: newCoach.email,
+      },
     });
   } catch (err) {
     console.error("signup error:", err);

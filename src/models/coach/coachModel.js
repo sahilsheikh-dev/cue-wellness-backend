@@ -3,9 +3,9 @@ const mongoose = require("mongoose");
 const CoachSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, index: true, sparse: true },
+    email: { type: String, index: true, sparse: true , unique: true },
     nick_name: { type: String },
-    mobile: { type: String, required: true, unique: true },
+    mobile: { type: String },
     password: { type: String, required: true },
     dob: { type: Date },
     country: { type: String },
