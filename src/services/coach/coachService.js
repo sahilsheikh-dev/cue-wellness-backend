@@ -17,7 +17,9 @@ async function createUnverifiedCoach({
   mobileVerified,
   agree_terms_conditions,
   agree_privacy_policy,
+  token
 }) {
+  console.log("in create unverified coach service{}", token)
   // check if mobile already exists
   const exists = await Coach.findOne({ mobile });
   if (exists) throw new Error("Mobile number already registered");
@@ -29,6 +31,7 @@ async function createUnverifiedCoach({
     mobileVerified: !!mobileVerified,
     agree_terms_conditions,
     agree_privacy_policy,
+    token
   });
 
   await newCoach.save();
@@ -134,6 +137,42 @@ async function updateCoach(id, data) {
 
   const updated = await Coach.findByIdAndUpdate(id, update, { new: true });
   return updated ? formatCoach(updated) : null;
+}
+// coachile profile building service
+async function coachProfileSetupService(payload) {
+  // Build only allowed fields
+  const updateObj = {};
+
+  if (payload.email) updateObj.email = payload.email;
+  if (payload.dob) updateObj.dob = new Date(payload.dob);
+  if (payload.gender) updateObj.gender = payload.gender;
+  if (payload.country) updateObj.country = payload.country;
+  if (payload.city) updateObj.city = payload.city;
+  if (payload.address) updateObj.address = payload.address;
+  if (payload.pincode) updateObj.pincode = payload.pincode;
+  if (payload.experience_since_date)
+    updateObj.experience_since_date = new Date(payload.experience_since_date);
+
+  if (typeof payload.agree_certification === "boolean")
+    updateObj.agree_certification = payload.agree_certification;
+  if (typeof payload.agree_experience === "boolean")
+    updateObj.agree_experience = payload.agree_experience;
+  if (typeof payload.agree_refund === "boolean")
+    updateObj.agree_refund = payload.agree_refund;
+
+  if (payload.my_connections) updateObj.my_connections = payload.my_connections;
+  if (payload.accepted_genders)
+    updateObj.accepted_genders = payload.accepted_genders;
+  if (payload.accepted_languages)
+    updateObj.accepted_languages = payload.accepted_languages;
+
+  const updatedCoach = await Coach.findOneAndUpdate(
+    { _id: payload.id },
+    { $set: updateObj },
+    { new: true }
+  );
+
+  return updatedCoach;
 }
 
 // admin verify: change status
@@ -352,6 +391,7 @@ module.exports = {
   toggleSaveCoach,
   setProfilePicture,
   setWorkAssets,
+  coachProfileSetupService,
   buildProfile,
   deleteCoach,
   updatePassword,

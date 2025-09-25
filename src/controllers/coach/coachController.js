@@ -4,6 +4,7 @@ const otpService = require("../../services/otpService");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const validateInputs = require("../../utils/validateInputs.util");
 const Error = require("../../models/errorModel");
+const getId = require("../../utils/getId.util")
 
 // Signup — create unverified coach and send OTP (userType=coach)
 async function signup(req, res) {
@@ -17,6 +18,7 @@ async function signup(req, res) {
       agree_privacy_policy,
     } = req.body;
 
+    let token = getId(12);
     // validate required fields
     if (!name || !password || !mobile) {
       return res.status(400).send({
@@ -31,7 +33,7 @@ async function signup(req, res) {
         error: "Bad Request",
       });
     }
-
+   
     const newCoach = await coachService.createUnverifiedCoach({
       name,
       password,
@@ -39,8 +41,10 @@ async function signup(req, res) {
       mobileVerified,
       agree_terms_conditions,
       agree_privacy_policy,
+      token
     });
-
+    let encryptedtoken = encrypt(token);
+    console.log(encryptedtoken);
     return res.status(201).send({
       message: "Signup successful",
       data: {
@@ -50,6 +54,7 @@ async function signup(req, res) {
         mobileVerified: newCoach.mobileVerified,
         agree_terms_conditions: newCoach.agree_terms_conditions,
         agree_privacy_policy: newCoach.agree_privacy_policy,
+        token:encryptedtoken
       },
     });
   } catch (err) {
@@ -718,46 +723,66 @@ const checkCookie = async (req, res) => {
   }
 };
 
-const buildProfile = async (req, res) => {
+async function coachProfileSetup (req, res) {
   try {
-    if (
-      !validateInputs(
-        req.body.email,
-        req.body.dob,
-        req.body.gender,
-        req.body.pin_code,
-        req.body.country,
-        req.body.city,
-        req.body.address,
-        req.body.experience,
-        req.body.category,
-        req.body.token,
-        req.body.languages,
-        req.body.client_gender
-      )
-    ) {
+    const {
+      email,
+      dob,
+      gender,
+      country,
+      city,
+      address,
+      pincode,
+      experience_since_date,
+      agree_certification,
+      agree_experience,
+      agree_refund,
+      my_connections,
+      accepted_genders,
+      accepted_languages,
+      id,
+    } = req.body;
+
+    if (!id) {
       return res.status(400).send({
-        message: "Please fill all the details",
+        message: "id is required",
         error: "Bad Request",
       });
     }
 
-    const updatedCoach = await coachService.buildProfile(req.body);
+    const updatedCoach = await coachService.coachProfileSetupService({
+      email,
+      dob,
+      gender,
+      country,
+      city,
+      address,
+      pincode,
+      experience_since_date,
+      agree_certification,
+      agree_experience,
+      agree_refund,
+      my_connections,
+      accepted_genders,
+      accepted_languages,
+      id,
+    });
+
     if (!updatedCoach) {
       return res
         .status(404)
-        .send({ message: "Coach not found", error: "Not found" });
+        .send({ message: "Coach not found", error: "Not Found" });
     }
 
     return res
       .status(200)
-      .send({ message: "Profile built successfully", data: updatedCoach });
+      .send({ message: "Profile updated successfully", data: updatedCoach });
   } catch (err) {
-    console.error("buildProfile error:", err);
-    const newError = new Error({
-      name: "build coach profile error",
+    console.error("coachProfileSetup error:", err);
+      const newError = new Error({
+      name: "coach profile setup error",
       file: "controllers/coach/coachController",
-      description: err.message,
+      description: "Error while setting up coach profile: " + err,
       dateTime: new Date(),
       section: "coach",
       priority: "high",
@@ -843,6 +868,7 @@ const updatePassword = async (req, res) => {
 
 module.exports = {
   signup,
+  coachProfileSetup,
   verifyOtp,
   login,
   logout,
@@ -861,7 +887,6 @@ module.exports = {
   uploadProfilePicture,
   uploadWorkAssets,
   checkCookie,
-  buildProfile,
   deleteCoach,
   updatePassword,
 };

@@ -10,6 +10,9 @@ const CoachSchema = new mongoose.Schema(
     dob: { type: Date },
     country: { type: String },
     gender: { type: String },
+    city:{type:String },
+    address:{type:String},
+    pincode:{type: Number},
 
     profilePicture: { type: String }, // relative path or URL
     certificates: [String],
@@ -29,35 +32,10 @@ const CoachSchema = new mongoose.Schema(
     verified: { type: Boolean, default: false },
     mobileVerified: { type: Boolean, default: false },
 
-    category: [
-      {
-        id: { type: String, required: true },
-        coach_experties_level: [{ type: String, required: true }],
-        session: [
-          {
-            client_experties_level: String,
-            session_type: String,
-            avg_time: String,
-            avg_price: String,
-            currency: String,
-            slots: [
-              {
-                date: { type: Date, required: true },
-                time: [
-                  {
-                    from: String,
-                    to: String,
-                    booking_status: { type: String, default: "false" },
-                    booked: String,
-                    booking_id: String,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    // these are experties of coach
+    my_connections: [String],
+    accepted_genders:[String],
+    accepted_languages:[String],
 
     // professional info
     experience_since_date: { type: Date },
