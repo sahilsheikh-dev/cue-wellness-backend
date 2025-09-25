@@ -2,10 +2,8 @@
 const coachService = require("../../services/coach/coachService");
 const otpService = require("../../services/otpService");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
-const getId = require("../../utils/getId.util");
 const validateInputs = require("../../utils/validateInputs.util");
 const Error = require("../../models/errorModel");
-const Coach = require("../../models/coach/coachModel");
 
 // Signup — create unverified coach and send OTP (userType=coach)
 async function signup(req, res) {
@@ -23,7 +21,6 @@ async function signup(req, res) {
         .send({ message: "Please fill all fields", error: "Bad Request" });
     }
 
-    // create coach record (unverified)
     const newCoach = await coachService.createUnverifiedCoach({
       name,
       email,
@@ -90,27 +87,20 @@ async function verifyOtp(req, res) {
       }
     }
 
-    const record = result.record; // OtpRequest doc
-    // Prefer meta.coachId (set at signup); otherwise find coach by phone and status unverified
-    let coach;
-    if (record.meta && record.meta.coachId) {
-      coach = await Coach.findById(record.meta.coachId);
-    } else {
-      coach = await Coach.findOne({ mobile: record.phone });
-    }
-    if (!coach)
+    // delegate all DB & formatting logic to service
+    const { token, coach } = await coachService.processOtpVerification(
+      result.record
+    );
+    if (!coach) {
       return res
         .status(404)
         .json({ message: "Coach not found", error: "Not found" });
+    }
 
-    // set token and mobileVerified
-    const { token } = await coachService.setTokenForCoachById(coach._id);
-    coach.mobileVerified = true;
-    coach.status === "unverified" ? "semiverified" : coach.status; // optionally bump to semiverified
-    await coach.save();
     return res.status(200).send({
       message: "Verified and logged in",
       token: encrypt(token),
+      coach,
     });
   } catch (err) {
     console.error("verifyOtp error:", err);
@@ -144,8 +134,11 @@ async function login(req, res) {
         .status(401)
         .send({ message: "Invalid mobile or password", error: "Unauthorized" });
 
-    const { coach, token } = result;
-    res.cookie("CoachAuthToken", encrypt(token), {
+    // result is a formatted coach object which includes token
+    const coach = result;
+
+    // Set cookie with encrypted token
+    res.cookie("CoachAuthToken", encrypt(coach.token), {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
       secure: true,
@@ -154,15 +147,8 @@ async function login(req, res) {
 
     return res.status(200).send({
       message: "Login successful",
-      token: encrypt(token),
-      coach: {
-        id: coach._id,
-        name: coach.name,
-        mobile: coach.mobile,
-        status: coach.status,
-        agree_terms_conditions: coach.agree_terms_conditions,
-        agree_privacy_policy: coach.agree_privacy_policy,
-      },
+      token: encrypt(coach.token),
+      coach,
     });
   } catch (err) {
     console.error("login error:", err);
@@ -224,10 +210,16 @@ async function getPersonalInfo(req, res) {
   try {
     const coach = req.coach;
     const coachInfo = await coachService.getCoachById(coach._id);
-    if (!coachInfo)
+    if (!coachInfo) {
       return res
-        .status(200)
-        .send({ message: "personal info found", data: coachInfo });
+        .status(404)
+        .send({ message: "Coach not found", error: "Not found" });
+    }
+
+    return res.status(200).send({
+      message: "Personal info found",
+      data: coachInfo,
+    });
   } catch (err) {
     console.error("getPersonalInfo:", err);
     const newError = new Error({
@@ -433,7 +425,7 @@ const { list, getById, likeActivity, dislikeActivity, saveCoach, unsaveCoach } =
     getById: async (req, res) => {
       try {
         const coach = await coachService.getCoachById(req.params.id);
-        if (!d)
+        if (!coach)
           return res
             .status(404)
             .send({ message: "Coach Not found", erro: "Not found" });
@@ -673,21 +665,13 @@ const checkCookie = async (req, res) => {
       token = rawToken; // fallback if token is plain
     }
 
-    const coach = await Coach.findOne({ token });
+    const coach = await coachService.getCoachByToken(token);
     if (!coach) {
       return res.status(401).send({
         message: "Unauthorized: Coach not found",
         error: "Unauthorized",
       });
     }
-
-    // Optional: decrypt fields safely
-    const coachData = {
-      id: coach._id,
-      name: coach.name,
-      mobile: coach.mobile,
-      status: coach.status,
-    };
 
     // Set cookie again (refresh)
     res.cookie("CoachAuthToken", encrypt(token), {
@@ -700,7 +684,7 @@ const checkCookie = async (req, res) => {
     return res.status(200).send({
       message: "Token verified successfully",
       token: encrypt(token),
-      coach: coachData,
+      coach,
     });
   } catch (err) {
     console.error("checkCookie error:", err);

@@ -4,6 +4,11 @@ const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const getId = require("../../utils/getId.util");
 const validateInputs = require("../../utils/validateInputs.util");
 
+/**
+ * Note: this service contains ALL database operations and formatting/transformations.
+ * Controller should NOT do any DB calls.
+ */
+
 // Create (signup) - unverified coach
 async function createUnverifiedCoach({
   name,
@@ -24,13 +29,43 @@ async function createUnverifiedCoach({
     password: encrypt(password),
     agree_terms_conditions: !!agree_terms_conditions,
     agree_privacy_policy: !!agree_privacy_policy,
+    status: "unverified",
+    verified: false,
   });
 
   await newCoach.save();
-  return newCoach;
+  return formatCoach(newCoach);
 }
 
-// Verify OTP & set token
+// Verify OTP record and set token + mobileVerified (all DB work here)
+async function processOtpVerification(otpRecord) {
+  // otpRecord is expected to be the OtpRequest document returned by otpService.verifyOtp
+  if (!otpRecord) return { token: null, coach: null };
+
+  let coach;
+  if (otpRecord.meta && otpRecord.meta.coachId) {
+    coach = await Coach.findById(otpRecord.meta.coachId);
+  } else if (otpRecord.phone) {
+    coach = await Coach.findOne({ mobile: otpRecord.phone });
+  }
+
+  if (!coach) return { token: null, coach: null };
+
+  // set token
+  const token = getId(12);
+  coach.token = token;
+  coach.mobileVerified = true;
+
+  // bump status only if currently unverified
+  if (coach.status === "unverified") {
+    coach.status = "semiverified";
+  }
+
+  await coach.save();
+  return { token, coach: formatCoach(coach) };
+}
+
+// Set token for coach by id (used elsewhere)
 async function setTokenForCoachById(coachId) {
   const token = getId(12);
   const coach = await Coach.findByIdAndUpdate(
@@ -38,7 +73,7 @@ async function setTokenForCoachById(coachId) {
     { token },
     { new: true }
   );
-  return { coach, token };
+  return { coach: coach ? formatCoach(coach) : null, token };
 }
 
 // Login
@@ -50,7 +85,7 @@ async function login(mobile, password) {
   const token = getId(12);
   coach.token = token;
   await coach.save();
-  return { coach, token };
+  return formatCoach(coach); // includes token
 }
 
 // Logout
@@ -59,12 +94,20 @@ async function logout(token) {
   if (!coach) return null;
   coach.token = null;
   await coach.save();
-  return coach;
+  return formatCoach(coach);
 }
 
 // get by id (public)
 async function getCoachById(id) {
   const coach = await Coach.findById(id);
+  if (!coach) return null;
+  return formatCoach(coach);
+}
+
+// get by token (used by checkCookie) - returns formatted coach
+async function getCoachByToken(token) {
+  if (!token) return null;
+  const coach = await Coach.findOne({ token });
   if (!coach) return null;
   return formatCoach(coach);
 }
@@ -77,7 +120,7 @@ async function listCoaches({ page = 1, limit = 20, status, q } = {}) {
   if (q)
     filter.$or = [
       { mobile: { $regex: q, $options: "i" } },
-      // searching encrypted name isn't reliable; keep simple text matches only
+      // Note: searching encrypted fields is not reliable
     ];
 
   const docs = await Coach.find(filter).skip(skip).limit(limit);
@@ -123,7 +166,10 @@ async function addCertificates(id, files) {
 async function saveAgreement(id, title, contentArr) {
   const formatted = {
     title,
-    content: contentArr.map((i) => ({ type: i.type, content: i.content })),
+    content: (contentArr || []).map((i) => ({
+      type: i.type,
+      content: i.content,
+    })),
   };
   const updated = await Coach.findByIdAndUpdate(
     id,
@@ -138,9 +184,11 @@ async function saveSessionSlots(id, categoryId, sessionKey, level, payload) {
   const coach = await Coach.findById(id);
   if (!coach) return null;
 
-  const catIndex = coach.category.findIndex((c) => c.id === categoryId);
+  const catIndex = (coach.category || []).findIndex((c) => c.id === categoryId);
   if (catIndex === -1) throw new Error("Category not found");
 
+  coach.category[catIndex].levelOfExpertise =
+    coach.category[catIndex].levelOfExpertise || [];
   if (!coach.category[catIndex].levelOfExpertise.includes(level)) {
     coach.category[catIndex].levelOfExpertise.push(level);
   }
@@ -179,65 +227,88 @@ async function toggleSaveCoach(coachId, savedCoachId, action = "add") {
   return formatCoach(coach);
 }
 
-// helper: format coach for responses (decrypt text fields)
+// helper: format coach for responses (remove sensitive fields, decrypt where needed)
 function formatCoach(doc) {
-  const d = doc.toObject();
+  if (!doc) return null;
+  const d = doc.toObject ? doc.toObject() : JSON.parse(JSON.stringify(doc));
+
+  // Remove sensitive fields for response
   delete d.password;
+
+  // Optionally keep token in response (controller uses it for cookie).
+  // If you want to hide the raw token from clients, remove it here and return a short-lived jwt instead.
+  // For now, keep token because your controllers expect it.
   return d;
 }
 
 // Set Profile Picture
 async function setProfilePicture(id, filename) {
-  return await Coach.findByIdAndUpdate(
+  const updated = await Coach.findByIdAndUpdate(
     id,
     { profilePicture: filename },
     { new: true }
   );
+  return formatCoach(updated);
 }
 
 // Set Work Images (max 3)
 async function setWorkAssets(id, files) {
   const workImages = files.map((f) => ({
-    type: f.mimetype.startsWith("image") ? "image" : "video",
+    type: f.mimetype && f.mimetype.startsWith("image") ? "image" : "video",
     path: f.filename,
   }));
-  return await Coach.findByIdAndUpdate(id, { workImages }, { new: true });
+  const updated = await Coach.findByIdAndUpdate(
+    id,
+    { workImages },
+    { new: true }
+  );
+  return formatCoach(updated);
 }
 
 // Build / update coach profile
 async function buildProfile(payload) {
   // Parse DOB from MM-DD-YYYY
-  let [month, day, year] = payload.dob.split("-").map(Number);
-  let dob = new Date(year, month - 1, day);
+  let dob = null;
+  if (payload.dob) {
+    const parts = payload.dob.split("-").map(Number);
+    if (parts.length === 3) {
+      const [month, day, year] = parts;
+      dob = new Date(year, month - 1, day);
+    }
+  }
+
+  const tokenDecrypted = decrypt(payload.token);
+
+  const updateObj = {
+    email: encrypt(payload.email),
+    dob,
+    gender: encrypt(payload.gender),
+    pinCode: encrypt(payload.pin_code),
+    country: payload.country,
+    city: encrypt(payload.city),
+    address: encrypt(payload.address),
+    experience_year: encrypt(String(payload.experience?.year || "")),
+    experience_months: encrypt(String(payload.experience?.months || "")),
+    category: (payload.category || []).map((item) => ({
+      id: item.id,
+      coach_experties_level: item.coach_experties_level,
+      session: (item.session || []).map((s) => ({
+        client_experties_level: s.client_experties_level,
+        session_type: s.session_type,
+        avg_time: s.avg_time,
+        avg_price: s.avg_price,
+        currency: s.currency,
+        slots: s.slots || [],
+      })),
+    })),
+    client_gender: (payload.client_gender || []).map((g) => encrypt(g)),
+    languages: (payload.languages || []).map((l) => l._id || l),
+    verified: false,
+  };
 
   const updatedCoach = await Coach.findOneAndUpdate(
-    { token: decrypt(payload.token) },
-    {
-      email: encrypt(payload.email),
-      dob,
-      gender: encrypt(payload.gender),
-      pinCode: encrypt(payload.pin_code),
-      country: payload.country,
-      city: encrypt(payload.city),
-      address: encrypt(payload.address),
-      experience_year: encrypt(payload.experience.year),
-      experience_months: encrypt(payload.experience.months),
-      category: payload.category.map((item) => ({
-        id: item.id,
-        coach_experties_level: item.coach_experties_level,
-        session: item.session.map((s) => ({
-          client_experties_level: s.client_experties_level,
-          session_type: s.session_type,
-          avg_time: s.avg_time,
-          avg_price: s.avg_price,
-          currency: s.currency,
-          slots: s.slots || [],
-        })),
-      })),
-      client_gender: payload.client_gender.map((g) => encrypt(g)),
-      languages: payload.languages.map((l) => l._id),
-      verified: false,
-    },
+    { token: tokenDecrypted },
+    updateObj,
     { new: true }
   );
 
@@ -267,10 +338,12 @@ async function updatePassword(coachId, oldPassword, newPassword) {
 
 module.exports = {
   createUnverifiedCoach,
+  processOtpVerification,
   setTokenForCoachById,
   login,
   logout,
   getCoachById,
+  getCoachByToken,
   listCoaches,
   updateCoach,
   changeCoachStatus,
@@ -284,4 +357,5 @@ module.exports = {
   buildProfile,
   deleteCoach,
   updatePassword,
+  formatCoach,
 };
