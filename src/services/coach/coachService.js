@@ -12,29 +12,27 @@ const validateInputs = require("../../utils/validateInputs.util");
 // Create (signup) - unverified coach
 async function createUnverifiedCoach({
   name,
-  email,
   password,
+  mobile,
+  mobileVerified,
   agree_terms_conditions,
   agree_privacy_policy,
 }) {
-  if (!validateInputs(name, email, password))
-    throw new Error("Name/email/password required");
-
-  const exists = await Coach.findOne({ email });
-  if (exists) throw new Error("Email already registered");
+  // check if mobile already exists
+  const exists = await Coach.findOne({ mobile });
+  if (exists) throw new Error("Mobile number already registered");
 
   const newCoach = new Coach({
     name,
-    email,
+    mobile,
     password: encrypt(password),
-    agree_terms_conditions: !!agree_terms_conditions,
-    agree_privacy_policy: !!agree_privacy_policy,
-    status: "unverified",
-    verified: false,
+    mobileVerified: !!mobileVerified,
+    agree_terms_conditions,
+    agree_privacy_policy,
   });
 
   await newCoach.save();
-  return formatCoach(newCoach);
+  return newCoach;
 }
 
 // Verify OTP record and set token + mobileVerified (all DB work here)

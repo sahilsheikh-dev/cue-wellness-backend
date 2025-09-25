@@ -10,21 +10,33 @@ async function signup(req, res) {
   try {
     const {
       name,
-      email,
       password,
+      mobile,
+      mobileVerified,
       agree_terms_conditions,
       agree_privacy_policy,
     } = req.body;
-    if (!name || !email || !password) {
-      return res
-        .status(400)
-        .send({ message: "Please fill all fields", error: "Bad Request" });
+
+    // validate required fields
+    if (!name || !password || !mobile) {
+      return res.status(400).send({
+        message: "Please provide name, password, and mobile",
+        error: "Bad Request",
+      });
+    }
+
+    if (agree_terms_conditions !== true || agree_privacy_policy !== true) {
+      return res.status(400).send({
+        message:"You must agree to Terms & Conditions and Privacy Policy to signup",
+        error: "Bad Request",
+      });
     }
 
     const newCoach = await coachService.createUnverifiedCoach({
       name,
-      email,
       password,
+      mobile,
+      mobileVerified,
       agree_terms_conditions,
       agree_privacy_policy,
     });
@@ -34,17 +46,18 @@ async function signup(req, res) {
       data: {
         id: newCoach._id,
         name: newCoach.name,
-        email: newCoach.email,
+        mobile: newCoach.mobile,
+        mobileVerified: newCoach.mobileVerified,
         agree_terms_conditions: newCoach.agree_terms_conditions,
         agree_privacy_policy: newCoach.agree_privacy_policy,
       },
     });
   } catch (err) {
     console.error("signup error:", err);
-    const newError = new Error({
-      name: "singnup error",
+      const newError = new Error({
+      name: "signup error",
       file: "controllers/coach/coachController",
-      description: "error while sign up" + err,
+      description: "error while signup" + err,
       dateTime: new Date(),
       section: "coach",
       priority: "high",

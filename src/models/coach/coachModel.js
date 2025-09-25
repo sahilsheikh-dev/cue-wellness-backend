@@ -3,9 +3,9 @@ const mongoose = require("mongoose");
 const CoachSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, index: true, sparse: true, unique: true },
+    email: { type: String, index: true, sparse: true},
     nick_name: { type: String },
-    mobile: { type: String },
+    mobile: { type: String, unique:true},
     password: { type: String, required: true },
     dob: { type: Date },
     country: { type: String },
@@ -108,8 +108,8 @@ const CoachSchema = new mongoose.Schema(
     has_read_event_organizer_guideline: { type: Boolean, default: false },
     has_read_product_company_guideline: { type: Boolean, default: false },
 
-    agree_terms_conditions: { type: Boolean, default: false },
-    agree_privacy_policy: { type: Boolean, default: false },
+    agree_terms_conditions: { type: Boolean, required: true },
+    agree_privacy_policy: { type: Boolean, required: true },
 
     agree_certification: { type: Boolean, default: false },
     agree_experience: { type: Boolean, default: false },
