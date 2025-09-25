@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const CoachSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, index: true, sparse: true , unique: true },
+    email: { type: String, index: true, sparse: true, unique: true },
     nick_name: { type: String },
     mobile: { type: String },
     password: { type: String, required: true },
@@ -63,7 +63,7 @@ const CoachSchema = new mongoose.Schema(
     experience_since_date: { type: Date },
     cue_share_percentage: { type: Number },
     coach_share_percentage: { type: Number },
-    story: {type:String},
+    story: { type: String },
 
     // awareness, journal, etc
     awareness: [
@@ -86,7 +86,7 @@ const CoachSchema = new mongoose.Schema(
     ],
 
     agreement_terms: {
-      type: String
+      type: String,
     },
 
     reflection_subscription: {
@@ -103,10 +103,13 @@ const CoachSchema = new mongoose.Schema(
     has_read_connection_guideline: { type: Boolean, default: false },
     has_read_reflection_guideline: { type: Boolean, default: false },
     has_read_journal_guideline: { type: Boolean, default: false },
-    has_read_client_guideline: { type: Boolean, default: false },
-    has_read_coach_guideline: { type: Boolean, default: false },
-    has_read_event_organizer_guideline: { type: Boolean, default: false },
-    has_read_product_company_guideline: { type: Boolean, default: false },
+    has_read_client_guideline: { type: Boolean, default: false },
+    has_read_coach_guideline: { type: Boolean, default: false },
+    has_read_event_organizer_guideline: { type: Boolean, default: false },
+    has_read_product_company_guideline: { type: Boolean, default: false },
+
+    agree_terms_conditions: { type: Boolean, default: false },
+    agree_privacy_policy: { type: Boolean, default: false },
 
     agree_certification: { type: Boolean, default: false },
     agree_experience: { type: Boolean, default: false },

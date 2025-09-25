@@ -10,7 +10,13 @@ const Coach = require("../../models/coach/coachModel");
 // Signup — create unverified coach and send OTP (userType=coach)
 async function signup(req, res) {
   try {
-    const { name, email, password } = req.body;
+    const {
+      name,
+      email,
+      password,
+      agree_terms_conditions,
+      agree_privacy_policy,
+    } = req.body;
     if (!name || !email || !password) {
       return res
         .status(400)
@@ -21,7 +27,9 @@ async function signup(req, res) {
     const newCoach = await coachService.createUnverifiedCoach({
       name,
       email,
-      password
+      password,
+      agree_terms_conditions,
+      agree_privacy_policy,
     });
 
     return res.status(201).send({
@@ -30,6 +38,8 @@ async function signup(req, res) {
         id: newCoach._id,
         name: newCoach.name,
         email: newCoach.email,
+        agree_terms_conditions: newCoach.agree_terms_conditions,
+        agree_privacy_policy: newCoach.agree_privacy_policy,
       },
     });
   } catch (err) {
@@ -147,15 +157,11 @@ async function login(req, res) {
       token: encrypt(token),
       coach: {
         id: coach._id,
-        name: (() => {
-          try {
-            return coach.name;
-          } catch (e) {
-            return coach.name;
-          }
-        })(),
+        name: coach.name,
         mobile: coach.mobile,
         status: coach.status,
+        agree_terms_conditions: coach.agree_terms_conditions,
+        agree_privacy_policy: coach.agree_privacy_policy,
       },
     });
   } catch (err) {
