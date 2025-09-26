@@ -16,15 +16,19 @@ const {
 } = process.env;
 
 // Utility: build multer storage
-function makeStorage(subPath) {
-  const uploadPath = path.join(__dirname, "../../", UPLOADS_BASE_PATH, subPath);
-  if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
+function makeStorage(basePath) {
+  const uploadPath = basePath; // absolute path from env (e.g. /Users/.../Documents)
+
+  if (!fs.existsSync(uploadPath)) {
+    fs.mkdirSync(uploadPath, { recursive: true });
+  }
+
   return multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadPath),
     filename: (req, file, cb) =>
       cb(
         null,
-        `${subPath}_${Date.now()}_${Math.round(
+        `certificate_${Date.now()}_${Math.round(
           Math.random() * 1e9
         )}${path.extname(file.originalname)}`
       ),

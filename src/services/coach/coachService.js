@@ -212,9 +212,9 @@ async function changeCoachStatus(id, status) {
 
 // upload certificates: push filenames
 async function addCertificates(id, files) {
-  const filenames = files.map((f) => f.filename || f.path || f);
+  const filenames = files.map((f) => f.path);
   const updated = await Coach.findByIdAndUpdate(
-    id,
+    {_id:id},
     { $push: { certificates: { $each: filenames } } },
     { new: true }
   );

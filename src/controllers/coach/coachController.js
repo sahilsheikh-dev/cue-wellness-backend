@@ -316,7 +316,7 @@ async function changeStatus(req, res) {
 // Upload certificates
 async function uploadCertificates(req, res) {
   try {
-    const coachId = req.coach?._id || req.body.coachId;
+    const coachId = req.body.id;
     if (!coachId)
       return res
         .status(400)
