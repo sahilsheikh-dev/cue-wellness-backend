@@ -174,6 +174,22 @@ async function coachProfileSetupService(payload) {
   return updatedCoach;
 }
 
+async function saveStoryService(payload) {
+
+  // Update only story field
+  const updatedCoach = await Coach.findOneAndUpdate(
+    { _id: payload.id },
+    { $set: { story: payload.story } },
+    { new: true }
+  );
+
+  if (!updatedCoach) {
+    throw new Error("Account not found, please register");
+  }
+
+  return updatedCoach;
+}
+
 // admin verify: change status
 async function changeCoachStatus(id, status) {
   if (!["unverified", "semiverified", "verified"].includes(status)) {
@@ -399,6 +415,7 @@ module.exports = {
   setProfilePicture,
   setWorkAssets,
   coachProfileSetupService,
+  saveStoryService,
   buildProfile,
   deleteCoach,
   updatePassword,

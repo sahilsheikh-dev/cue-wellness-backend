@@ -794,6 +794,41 @@ async function coachProfileSetup(req, res) {
   }
 }
 
+async function saveStory(req, res) {
+try {
+    const { id, story } = req.body;
+
+    if (!id || !story) {
+      return res.status(400).json({
+        message: "Id or Story cannot be empty",
+        error: "Bad Request",
+      });
+    }
+
+    const updatedCoach = await coachService.saveStoryService({ id, story });
+
+    return res.status(200).json({
+      message: "Story updated successfully",
+      data: { story: updatedCoach.story },
+    });
+  } catch (err) {
+    console.error("updateStory error:", err);
+      const newError = new Error({
+      name: "save story error",
+      file: "controllers/coach/coachController",
+      description: "Error while saving the story: " + err,
+      dateTime: new Date(),
+      section: "coach",
+      priority: "high",
+    });
+    await newError.save();
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
+
 const deleteCoach = async (req, res) => {
   try {
     const deletedCoach = await coachService.deleteCoach(req.params.id);
@@ -906,6 +941,7 @@ async function checkMobileAvailability(req, res) {
 module.exports = {
   signup,
   coachProfileSetup,
+  saveStory,
   verifyOtp,
   login,
   logout,
