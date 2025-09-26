@@ -17,9 +17,8 @@ async function createUnverifiedCoach({
   mobileVerified,
   agree_terms_conditions,
   agree_privacy_policy,
-  token
+  token,
 }) {
-  console.log("in create unverified coach service{}", token)
   // check if mobile already exists
   const exists = await Coach.findOne({ mobile });
   if (exists) throw new Error("Mobile number already registered");
@@ -31,7 +30,7 @@ async function createUnverifiedCoach({
     mobileVerified: !!mobileVerified,
     agree_terms_conditions,
     agree_privacy_policy,
-    token
+    token,
   });
 
   await newCoach.save();
@@ -373,6 +372,14 @@ async function updatePassword(coachId, oldPassword, newPassword) {
   return formatCoach(coach);
 }
 
+// Check Mobile Number
+async function isMobileAvailable(mobile) {
+  if (!mobile) throw new Error("Mobile number is required");
+
+  const coach = await Coach.findOne({ mobile });
+  return !coach; // true if not found, meaning available
+}
+
 module.exports = {
   createUnverifiedCoach,
   processOtpVerification,
@@ -396,4 +403,5 @@ module.exports = {
   deleteCoach,
   updatePassword,
   formatCoach,
+  isMobileAvailable,
 };

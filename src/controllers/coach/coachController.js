@@ -4,7 +4,7 @@ const otpService = require("../../services/otpService");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const validateInputs = require("../../utils/validateInputs.util");
 const Error = require("../../models/errorModel");
-const getId = require("../../utils/getId.util")
+const getId = require("../../utils/getId.util");
 
 // Signup — create unverified coach and send OTP (userType=coach)
 async function signup(req, res) {
@@ -29,11 +29,12 @@ async function signup(req, res) {
 
     if (agree_terms_conditions !== true || agree_privacy_policy !== true) {
       return res.status(400).send({
-        message:"You must agree to Terms & Conditions and Privacy Policy to signup",
+        message:
+          "You must agree to Terms & Conditions and Privacy Policy to signup",
         error: "Bad Request",
       });
     }
-   
+
     const newCoach = await coachService.createUnverifiedCoach({
       name,
       password,
@@ -41,10 +42,9 @@ async function signup(req, res) {
       mobileVerified,
       agree_terms_conditions,
       agree_privacy_policy,
-      token
+      token,
     });
     let encryptedtoken = encrypt(token);
-    console.log(encryptedtoken);
     return res.status(201).send({
       message: "Signup successful",
       data: {
@@ -54,12 +54,12 @@ async function signup(req, res) {
         mobileVerified: newCoach.mobileVerified,
         agree_terms_conditions: newCoach.agree_terms_conditions,
         agree_privacy_policy: newCoach.agree_privacy_policy,
-        token:encryptedtoken
+        token: encryptedtoken,
       },
     });
   } catch (err) {
     console.error("signup error:", err);
-      const newError = new Error({
+    const newError = new Error({
       name: "signup error",
       file: "controllers/coach/coachController",
       description: "error while signup" + err,
@@ -723,7 +723,7 @@ const checkCookie = async (req, res) => {
   }
 };
 
-async function coachProfileSetup (req, res) {
+async function coachProfileSetup(req, res) {
   try {
     const {
       email,
@@ -779,7 +779,7 @@ async function coachProfileSetup (req, res) {
       .send({ message: "Profile updated successfully", data: updatedCoach });
   } catch (err) {
     console.error("coachProfileSetup error:", err);
-      const newError = new Error({
+    const newError = new Error({
       name: "coach profile setup error",
       file: "controllers/coach/coachController",
       description: "Error while setting up coach profile: " + err,
@@ -792,7 +792,7 @@ async function coachProfileSetup (req, res) {
       .status(500)
       .send({ message: "Internal Server Error", error: err.message });
   }
-};
+}
 
 const deleteCoach = async (req, res) => {
   try {
@@ -866,6 +866,43 @@ const updatePassword = async (req, res) => {
   }
 };
 
+// Check Mobile Number
+async function checkMobileAvailability(req, res) {
+  try {
+    const { mobile } = req.body;
+    if (!mobile) {
+      return res.status(400).send({
+        message: "Mobile number is required",
+        error: "Bad Request",
+      });
+    }
+
+    const available = await coachService.isMobileAvailable(mobile);
+
+    return res.status(200).send({
+      message: available
+        ? "Mobile number is available"
+        : "Mobile number is already registered",
+      available,
+    });
+  } catch (err) {
+    console.error("checkMobileAvailability error:", err);
+    const newError = new Error({
+      name: "check mobile availability error",
+      file: "controllers/coach/coachController",
+      description: "Error while checking mobile availability: " + err,
+      dateTime: new Date(),
+      section: "coach",
+      priority: "medium",
+    });
+    await newError.save();
+    return res.status(500).send({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
+
 module.exports = {
   signup,
   coachProfileSetup,
@@ -889,4 +926,5 @@ module.exports = {
   checkCookie,
   deleteCoach,
   updatePassword,
+  checkMobileAvailability,
 };

@@ -41,6 +41,7 @@ router.post("/verify-otp", coachController.verifyOtp);
 router.post("/login", coachController.login);
 router.post("/logout", coachController.logout);
 router.post("/check-cookie", coachController.checkCookie);
+router.post("/check-mobile", coachController.checkMobileAvailability);
 
 // Authenticated coach routes
 router.get("/gerMyInfo", verifyCoach(), coachController.getPersonalInfo);
