@@ -177,17 +177,24 @@ async function coachProfileSetupService(payload) {
 async function saveStoryService(payload) {
 
   // Update only story field
-  const updatedCoach = await Coach.findOneAndUpdate(
+  const coach = await Coach.findOneAndUpdate(
     { _id: payload.id },
     { $set: { story: payload.story } },
     { new: true }
   );
 
-  if (!updatedCoach) {
-    throw new Error("Account not found, please register");
-  }
+  return coach;
+}
 
-  return updatedCoach;
+async function coachAgreementTermsService(payload) {
+  const coach = Coach.findByIdAndUpdate(
+    {_id:payload.id},
+    { $set: { agreement_terms: payload.agreement_terms} },
+    { new: true }
+  );
+
+  return coach;
+
 }
 
 // admin verify: change status
@@ -416,6 +423,7 @@ module.exports = {
   setWorkAssets,
   coachProfileSetupService,
   saveStoryService,
+  coachAgreementTermsService,
   buildProfile,
   deleteCoach,
   updatePassword,

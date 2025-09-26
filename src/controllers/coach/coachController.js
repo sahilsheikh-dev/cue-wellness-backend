@@ -805,14 +805,20 @@ try {
       });
     }
 
-    const updatedCoach = await coachService.saveStoryService({ id, story });
+    const savedStory = await coachService.saveStoryService({ id, story });
+
+  if (!savedStory) {
+      return res
+        .status(404)
+        .send({ message: "Coach not found", error: "Not Found" });
+    }
 
     return res.status(200).json({
-      message: "Story updated successfully",
-      data: { story: updatedCoach.story },
+      message: "Story saved successfully",
+      data: { story: savedStory.story },
     });
   } catch (err) {
-    console.error("updateStory error:", err);
+    console.error("saveStory error:", err);
       const newError = new Error({
       name: "save story error",
       file: "controllers/coach/coachController",
@@ -822,6 +828,46 @@ try {
       priority: "high",
     });
     await newError.save();
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
+
+async function coachAgreementTerms(req,res) {
+try {
+    const { id, agreement_terms } = req.body; // both come from body
+
+    if (!validateInputs(id)) {
+      return res.status(400).json({
+        message: "Coach ID is required",
+        error: "Bad Request",
+      });
+    }
+
+    if (!validateInputs(agreement_terms)) {
+      return res.status(400).json({
+        message: "Agreement terms (HTML) are required",
+        error: "Bad Request",
+      });
+    }
+
+    const coachAgreement = await coachService.coachAgreementTermsService({id, agreement_terms});
+
+    if (!coachAgreement) {
+      return res.status(404).json({
+        message: "Coach not found",
+        error: "Not Found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Agreement terms updated successfully",
+      data: { agreement_terms: coachAgreement.agreement_terms },
+    });
+  } catch (err) {
+    console.error("updateAgreementTerms error:", err);
     return res.status(500).json({
       message: "Internal Server Error",
       error: err.message,
@@ -942,6 +988,7 @@ module.exports = {
   signup,
   coachProfileSetup,
   saveStory,
+  coachAgreementTerms,
   verifyOtp,
   login,
   logout,
