@@ -16,8 +16,8 @@ const {
 } = process.env;
 
 // Utility: build multer storage
-function makeStorage(basePath) {
-  const uploadPath = basePath; // absolute path from env (e.g. /Users/.../Documents)
+function makeStorage(assetPath) {
+  const uploadPath = UPLOADS_BASE_PATH+"/"+assetPath; // absolute path from env (e.g. /Users/.../Documents)
 
   if (!fs.existsSync(uploadPath)) {
     fs.mkdirSync(uploadPath, { recursive: true });
