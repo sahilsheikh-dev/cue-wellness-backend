@@ -37,7 +37,7 @@ function makeStorage(assetPath) {
 
 const uploadProfilePic = multer({ storage: makeStorage(PROFILE_PIC_PATH) });
 const uploadCertificates = multer({ storage: makeStorage(CERTIFICATES_PATH) });
-const uploadWorkImages = multer({ storage: makeStorage(WORK_IMAGES_PATH) });
+const uploadWorkAsset = multer({ storage: makeStorage(WORK_IMAGES_PATH) });
 
 // Public routes
 router.post("/signup", coachController.signup);
@@ -59,7 +59,7 @@ router.patch("/coachAgreementTerms", verifyCoach(), coachController.coachAgreeme
 // Uploads
 router.post("/upload-profile-picture", verifyCoach(), uploadProfilePic.single("profilePicture"), coachController.uploadProfilePicture);
 router.post("/upload-certificates", verifyCoach(), uploadCertificates.array("certificates", 10), coachController.uploadCertificates);
-router.post("/upload-work-images", verifyCoach(), uploadWorkImages.array("workImages", 3), coachController.uploadWorkAssets);
+router.patch("/upload-work-asset", verifyCoach(), uploadWorkAsset.array("workAsset", 3), coachController.uploadWorkAssets);
 
 // Agreement & sessions
 router.post("/save-agreement", verifyCoach(), coachController.saveAgreement);

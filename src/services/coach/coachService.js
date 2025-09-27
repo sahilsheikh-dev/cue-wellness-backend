@@ -3,6 +3,7 @@ const Coach = require("../../models/coach/coachModel");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const getId = require("../../utils/getId.util");
 const validateInputs = require("../../utils/validateInputs.util");
+const fs = require("fs");
 
 /**
  * Note: this service contains ALL database operations and formatting/transformations.
@@ -208,16 +209,49 @@ async function changeCoachStatus(id, status) {
   return formatCoach(coach);
 }
 
-// upload certificates: push filenames
-async function addCertificates(id, files) {
-  const filenames = files.map((f) => f.path);
-  const updated = await Coach.findByIdAndUpdate(
-    { _id: id },
-    { $push: { certificates: { $each: filenames } } },
-    { new: true }
-  );
-  return updated ? formatCoach(updated) : null;
+async function addCertificates(coachId, indexes, files) {
+  const coach = await Coach.findById(coachId);
+  if (!coach) return null;
+
+  // Map of file paths by index for quick lookup
+  const fileMap = {};
+  for (let i = 0; i < files.length; i++) {
+    fileMap[indexes[i]] = files[i].path;
+  }
+
+  // Iterate over all indexes sent from frontend
+  for (const idx of indexes) {
+    const existingCertIndex = coach.certificates.findIndex(c => c.index === idx);
+
+    // Check if a file is provided for this index
+    if (fileMap[idx]) {
+      // File is uploaded → replace or add
+      if (existingCertIndex !== -1) {
+        // Delete old file
+        try { fs.unlinkSync(coach.certificates[existingCertIndex].path); } 
+        catch (err) { console.warn("Old file not found:", coach.certificates[existingCertIndex].path); }
+
+        coach.certificates[existingCertIndex].path = fileMap[idx]; // update path
+      } else {
+        // Add new certificate
+        coach.certificates.push({ index: idx, path: fileMap[idx] });
+      }
+    } else {
+      // No file → delete existing record and file
+      if (existingCertIndex !== -1) {
+        try { fs.unlinkSync(coach.certificates[existingCertIndex].path); } 
+        catch (err) { console.warn("File not found:", coach.certificates[existingCertIndex].path); }
+
+        coach.certificates.splice(existingCertIndex, 1); // remove from array
+      }
+    }
+  }
+
+  await coach.save();
+  return coach;
 }
+
+
 
 // save agreement
 async function saveAgreement(id, title, contentArr) {
@@ -310,13 +344,13 @@ async function setProfilePicture(id, filename) {
 
 // Set Work Images (max 3)
 async function setWorkAssets(id, files) {
-  const workImages = files.map((f) => ({
+  const workAssets = files.map((f) => ({
     type: f.mimetype && f.mimetype.startsWith("image") ? "image" : "video",
     path: f.filename,
   }));
   const updated = await Coach.findByIdAndUpdate(
-    id,
-    { workImages },
+    {_id:id},
+    { workAssets },
     { new: true }
   );
   return formatCoach(updated);

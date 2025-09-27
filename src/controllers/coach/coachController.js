@@ -317,35 +317,61 @@ async function changeStatus(req, res) {
 async function uploadCertificates(req, res) {
   try {
     const coachId = req.body.id;
-    if (!coachId)
-      return res
-        .status(400)
-        .json({ message: "coachId required", error: "Bad Request" });
-    const updated = await coachService.addCertificates(
-      coachId,
-      req.files || []
-    );
-    return res.status(200).send({
-      message: "Certificate uploaded successfully",
-      uploaded: (req.files || []).map((f) => f.filename),
+    if (!coachId) {
+      return res.status(400).json({ message: "coachId required" });
+    }
+
+    // Expect indexes as array in body (same order as files)
+    let indexes = req.body.index;
+
+    if (!indexes) {
+      return res.status(400).json({ message: "Indexes required" });
+    }
+
+    if (!Array.isArray(indexes)) {
+      indexes = [indexes]; // make it an array if only one
+    }
+
+    indexes = indexes.map(Number);
+    if (indexes.some(isNaN)) {
+      return res.status(400).json({ message: "Invalid certificate index provided" });
+    }
+
+    // files may be empty if user wants to delete a certificate
+    const files = req.files || [];
+
+    const updated = await coachService.addCertificates(coachId, indexes, files);
+
+    if (!updated) {
+      return res.status(404).json({ message: "Coach not found" });
+    }
+
+    // Prepare response: separate uploaded and deleted certificates
+    const uploaded = [];
+    const deleted = [];
+
+    for (let i = 0; i < indexes.length; i++) {
+      const idx = indexes[i];
+      const file = files.find((f, fIndex) => indexes[fIndex] === idx);
+      if (file) uploaded.push({ index: idx, filename: file.filename });
+      else deleted.push({ index: idx });
+    }
+
+    return res.status(200).json({
+      message: "Certificates processed successfully",
+      uploaded,
+      deleted,
       data: updated,
     });
   } catch (err) {
     console.error("uploadCertificates:", err);
-    const newError = new Error({
-      name: "upload certificate error",
-      file: "controllers/coach/coachController",
-      description: "error while uploading certificate" + err,
-      dateTime: new Date(),
-      section: "coach",
-      priority: "high",
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: err.message,
     });
-    await newError.save();
-    return res
-      .status(500)
-      .send({ message: "Intenal Server Error", error: err.message });
   }
 }
+
 
 // Save agreement
 async function saveAgreement(req, res) {
@@ -626,7 +652,7 @@ async function uploadWorkAssets(req, res) {
         .send({ message: "Maximum 3 files allowed", error: "Bad Request" });
 
     // Validate types
-    const allowedImages = [
+    const allowedAssets = [
       "image/jpeg",
       "image/png",
       "image/jpg",
@@ -634,7 +660,7 @@ async function uploadWorkAssets(req, res) {
       "video/mkv",
       "video/avi",
     ];
-    if (!allowedImages.includes(req.files[0].mimetype)) {
+    if (!allowedAssets.includes(req.files[0].mimetype)) {
       return res.status(415).send({
         message: "First file must be an image/video (jpeg/png/jpg/mp4/mkv/avi)",
         error: "Invalid file type",
@@ -643,7 +669,7 @@ async function uploadWorkAssets(req, res) {
     const updated = await coachService.setWorkAssets(req.coach._id, req.files);
     res.status(200).send({
       message: "Work image/video updated successfully",
-      workImages: updated.workImages,
+      workAssets: updated.workAssets,
     });
   } catch (err) {
     console.error(err);

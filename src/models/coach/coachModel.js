@@ -15,8 +15,13 @@ const CoachSchema = new mongoose.Schema(
     pincode: { type: Number },
 
     profilePicture: { type: String }, // relative path or URL
-    certificates: [String],
-    workImages: [
+    certificates: [
+      {
+      index:{type:Number},
+      path:{type:String}
+    }
+  ],
+    workAssets: [
       {
         type: { type: String }, // image / video
         path: String,
