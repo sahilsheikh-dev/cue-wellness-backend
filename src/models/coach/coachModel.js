@@ -24,7 +24,8 @@ const CoachSchema = new mongoose.Schema(
     workAssets: [
       {
         type: { type: String }, // image / video
-        path: String,
+        path: {type:String},
+        index: {type:Number}
       },
     ],
 

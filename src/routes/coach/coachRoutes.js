@@ -14,7 +14,6 @@ const {
   CERTIFICATES_PATH,
   WORK_IMAGES_PATH,
 } = process.env;
-
 // Utility: build multer storage
 function makeStorage(assetPath) {
   const uploadPath = UPLOADS_BASE_PATH+"/"+assetPath; // absolute path from env (e.g. /Users/.../Documents)

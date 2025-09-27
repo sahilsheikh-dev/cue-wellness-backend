@@ -365,6 +365,15 @@ async function uploadCertificates(req, res) {
     });
   } catch (err) {
     console.error("uploadCertificates:", err);
+    const newError = new Error({
+      name: "upload certificate error",
+      file: "controllers/coach/coachController",
+      description: "error while uploading certificate" + err,
+      dateTime: new Date(),
+      section: "coach",
+      priority: "high",
+    });
+    await newError.save();
     return res.status(500).json({
       message: "Internal Server Error",
       error: err.message,
@@ -609,16 +618,17 @@ const { list, getById, likeActivity, dislikeActivity, saveCoach, unsaveCoach } =
 // Upload Profile Picture
 async function uploadProfilePicture(req, res) {
   try {
-    if (!req.file)
-      return res
-        .status(400)
-        .send({ message: "No file uploaded", error: "Bad Request" });
-    const updated = await coachService.setProfilePicture(
-      req.coach._id,
-      req.file.filename
-    );
+    if (!req.file) {
+      return res.status(400).send({ message: "No file uploaded", error: "Bad Request" });
+    }
+
+    // Use full path for storing in DB
+    const fullFilePath = req.file.path;
+
+    const updated = await coachService.setProfilePicture(req.coach._id, fullFilePath);
+
     res.status(200).send({
-      message: "profile picture uploaded successfully",
+      message: "Profile picture uploaded successfully",
       data: updated.profilePicture,
     });
   } catch (err) {
@@ -626,7 +636,7 @@ async function uploadProfilePicture(req, res) {
     const newError = new Error({
       name: "profile picture error",
       file: "controllers/coach/coachController",
-      description: "error while uploading profile picture" + err,
+      description: "Error while uploading profile picture: " + err,
       dateTime: new Date(),
       section: "coach",
       priority: "high",
@@ -642,37 +652,52 @@ async function uploadProfilePicture(req, res) {
 // Upload Work Images
 async function uploadWorkAssets(req, res) {
   try {
-    if (!req.files || req.files.length === 0)
-      return res
-        .status(400)
-        .send({ message: "No files uploaded", error: "Bad Request" });
-    if (req.files.length > 3)
-      return res
-        .status(400)
-        .send({ message: "Maximum 3 files allowed", error: "Bad Request" });
+    const coachId = req.body.id;
+    if (!coachId) return res.status(400).json({ message: "coachId required" });
 
-    // Validate types
-    const allowedAssets = [
-      "image/jpeg",
-      "image/png",
-      "image/jpg",
-      "video/mp4",
-      "video/mkv",
-      "video/avi",
+    let indexes = req.body.index;
+    if (!indexes) return res.status(400).json({ message: "Indexes required" });
+
+    if (!Array.isArray(indexes)) indexes = [indexes];
+    indexes = indexes.map(Number);
+    if (indexes.some(isNaN)) return res.status(400).json({ message: "Invalid index" });
+
+    const files = req.files || [];
+
+    // Validate file types
+    const allowedTypes = [
+      "image/jpeg", "image/png", "image/jpg",
+      "video/mp4", "video/mkv", "video/avi"
     ];
-    if (!allowedAssets.includes(req.files[0].mimetype)) {
-      return res.status(415).send({
-        message: "First file must be an image/video (jpeg/png/jpg/mp4/mkv/avi)",
-        error: "Invalid file type",
-      });
+    for (const f of files) {
+      if (!allowedTypes.includes(f.mimetype)) {
+        return res.status(415).json({
+          message: "Invalid file type. Only images and videos allowed"
+        });
+      }
     }
-    const updated = await coachService.setWorkAssets(req.coach._id, req.files);
-    res.status(200).send({
-      message: "Work image/video updated successfully",
-      workAssets: updated.workAssets,
+
+    const updatedCoach = await coachService.setWorkAssets(coachId, indexes, files);
+    if (!updatedCoach) return res.status(404).json({ message: "Coach not found" });
+
+    const uploaded = [];
+    const deleted = [];
+    for (let i = 0; i < indexes.length; i++) {
+      const idx = indexes[i];
+      const file = files.find((f, fIndex) => indexes[fIndex] === idx);
+      if (file) uploaded.push({ index: idx, filename: file.filename });
+      else deleted.push({ index: idx });
+    }
+
+    res.status(200).json({
+      message: "Work assets processed successfully",
+      uploaded,
+      deleted,
+      data: updatedCoach.workAssets,
     });
+
   } catch (err) {
-    console.error(err);
+    console.error("uploadWorkAssets:", err);
     const newError = new Error({
       name: "work asset error",
       file: "controllers/coach/coachController",
@@ -682,11 +707,10 @@ async function uploadWorkAssets(req, res) {
       priority: "high",
     });
     await newError.save();
-    res
-      .status(500)
-      .send({ message: "Error uploading work assets", error: err.message });
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 }
+
 
 const checkCookie = async (req, res) => {
   try {

@@ -333,27 +333,77 @@ function formatCoach(doc) {
 }
 
 // Set Profile Picture
-async function setProfilePicture(id, filename) {
-  const updated = await Coach.findByIdAndUpdate(
-    id,
-    { profilePicture: filename },
-    { new: true }
-  );
-  return formatCoach(updated);
+async function setProfilePicture(id, fullFilePath) {
+  const coach = await Coach.findById(id);
+  if (!coach) return null;
+
+  // Delete existing profile picture file if exists
+  if (coach.profilePicture && fs.existsSync(coach.profilePicture)) {
+    try {
+      fs.unlinkSync(coach.profilePicture);
+    } catch (err) {
+      console.warn("Old profile picture not found or could not be deleted:", coach.profilePicture);
+    }
+  }
+
+  // Save full path to DB
+  coach.profilePicture = fullFilePath;
+  await coach.save();
+
+  return formatCoach(coach);
 }
 
 // Set Work Images (max 3)
-async function setWorkAssets(id, files) {
-  const workAssets = files.map((f) => ({
-    type: f.mimetype && f.mimetype.startsWith("image") ? "image" : "video",
-    path: f.filename,
-  }));
-  const updated = await Coach.findByIdAndUpdate(
-    {_id:id},
-    { workAssets },
-    { new: true }
-  );
-  return formatCoach(updated);
+// async function setWorkAssets(id, files) {
+//   const workAssets = files.map((f) => ({
+//     type: f.mimetype && f.mimetype.startsWith("image") ? "image" : "video",
+//     path: f.filename,
+//   }));
+//   const updated = await Coach.findByIdAndUpdate(
+//     {_id:id},
+//     { workAssets },
+//     { new: true }
+//   );
+//   return formatCoach(updated);
+// }
+
+async function setWorkAssets(coachId, indexes, files) {
+  const coach = await Coach.findById(coachId);
+  if (!coach) return null;
+
+  for (let i = 0; i < indexes.length; i++) {
+    const idx = indexes[i];
+    const file = files.find((f, fIndex) => indexes[fIndex] === idx);
+    const existingAsset = coach.workAssets.find(w => w.index === idx);
+
+    if (file) {
+      const type = file.mimetype.startsWith("image") ? "image" : "video";
+
+      if (existingAsset) {
+        // Delete old file
+        try { fs.unlinkSync(existingAsset.path); } 
+        catch (err) { console.warn("Old work asset not found:", existingAsset.path); }
+
+        // Update existing asset
+        existingAsset.path = file.path;
+        existingAsset.type = type;
+      } else {
+        // Push new asset
+        coach.workAssets.push({ index: idx, path: file.path, type });
+      }
+    } else {
+      // No file provided → delete existing asset if any
+      if (existingAsset) {
+        try { fs.unlinkSync(existingAsset.path); } 
+        catch (err) { console.warn("Old work asset not found:", existingAsset.path); }
+
+        coach.workAssets = coach.workAssets.filter(w => w.index !== idx);
+      }
+    }
+  }
+
+  await coach.save();
+  return coach;
 }
 
 // Build / update coach profile
