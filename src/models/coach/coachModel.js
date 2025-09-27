@@ -33,7 +33,7 @@ const CoachSchema = new mongoose.Schema(
     mobileVerified: { type: Boolean, default: false },
 
     // these are experties of coach
-    my_connections: [String],
+    my_activities: [String],
     accepted_genders: [String],
     accepted_languages: [String],
 

@@ -159,7 +159,7 @@ async function coachProfileSetupService(payload) {
   if (typeof payload.agree_refund === "boolean")
     updateObj.agree_refund = payload.agree_refund;
 
-  if (payload.my_connections) updateObj.my_connections = payload.my_connections;
+  if (payload.my_activities) updateObj.my_activities = payload.my_activities;
   if (payload.accepted_genders)
     updateObj.accepted_genders = payload.accepted_genders;
   if (payload.accepted_languages)
