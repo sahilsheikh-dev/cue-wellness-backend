@@ -3,7 +3,7 @@ const { decrypt } = require("../../utils/cryptography.util");
 const Coach = require("../../models/coach/coachModel");
 
 /**
- * options: { allowStatuses: ['verified','semiverified'] }
+ * options: { allowStatuses: ['verified','pending'] }
  */
 const verifyCoach = (options = {}) => {
   return async (req, res, next) => {

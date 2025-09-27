@@ -58,7 +58,7 @@ async function processOtpVerification(otpRecord) {
 
   // bump status only if currently unverified
   if (coach.status === "unverified") {
-    coach.status = "semiverified";
+    coach.status = "pending";
   }
 
   await coach.save();
@@ -175,7 +175,6 @@ async function coachProfileSetupService(payload) {
 }
 
 async function saveStoryService(payload) {
-
   // Update only story field
   const coach = await Coach.findOneAndUpdate(
     { _id: payload.id },
@@ -188,18 +187,17 @@ async function saveStoryService(payload) {
 
 async function coachAgreementTermsService(payload) {
   const coach = Coach.findByIdAndUpdate(
-    {_id:payload.id},
-    { $set: { agreement_terms: payload.agreement_terms} },
+    { _id: payload.id },
+    { $set: { agreement_terms: payload.agreement_terms } },
     { new: true }
   );
 
   return coach;
-
 }
 
 // admin verify: change status
 async function changeCoachStatus(id, status) {
-  if (!["unverified", "semiverified", "verified"].includes(status)) {
+  if (!["unverified", "pending", "verified"].includes(status)) {
     throw new Error("Invalid status");
   }
   const coach = await Coach.findById(id);
@@ -214,7 +212,7 @@ async function changeCoachStatus(id, status) {
 async function addCertificates(id, files) {
   const filenames = files.map((f) => f.path);
   const updated = await Coach.findByIdAndUpdate(
-    {_id:id},
+    { _id: id },
     { $push: { certificates: { $each: filenames } } },
     { new: true }
   );

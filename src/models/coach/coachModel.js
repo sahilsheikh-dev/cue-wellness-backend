@@ -3,16 +3,16 @@ const mongoose = require("mongoose");
 const CoachSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, index: true, sparse: true},
+    email: { type: String, index: true, sparse: true },
     nick_name: { type: String },
-    mobile: { type: String, unique:true},
+    mobile: { type: String, unique: true },
     password: { type: String, required: true },
     dob: { type: Date },
     country: { type: String },
     gender: { type: String },
-    city:{type:String },
-    address:{type:String},
-    pincode:{type: Number},
+    city: { type: String },
+    address: { type: String },
+    pincode: { type: Number },
 
     profilePicture: { type: String }, // relative path or URL
     certificates: [String],
@@ -26,16 +26,16 @@ const CoachSchema = new mongoose.Schema(
     token: { type: String },
     status: {
       type: String,
-      enum: ["unverified", "semiverified", "verified"],
+      enum: ["unverified", "pending", "verified"],
       default: "unverified",
     },
-    verified: { type: Boolean, default: false },
+    isBlocked: { type: Boolean, default: false },
     mobileVerified: { type: Boolean, default: false },
 
     // these are experties of coach
     my_connections: [String],
-    accepted_genders:[String],
-    accepted_languages:[String],
+    accepted_genders: [String],
+    accepted_languages: [String],
 
     // professional info
     experience_since_date: { type: Date },
