@@ -49,6 +49,7 @@ router.post("/check-mobile", coachController.checkMobileAvailability);
 // Authenticated coach routes
 router.get("/gerMyInfo", verifyCoach(), coachController.getPersonalInfo);
 router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
+router.put("/forget-password", verifyCoach(), coachController.forgetPassword);
 router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
 router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
 router.patch("/coachProfileSetup",verifyCoach(), coachController.coachProfileSetup);

@@ -1034,6 +1034,43 @@ async function checkMobileAvailability(req, res) {
   }
 }
 
+async function forgetPassword(req, res) {
+  try {
+    const { id, password } = req.body;
+
+    if (!id || !password) {
+      return res
+        .status(400)
+        .send({ message: "ID and password are required", error: "Bad Request" });
+    }
+
+    const updatedCoach = await coachService.forgetPasswordService(id, password);
+
+    if (!updatedCoach) {
+      return res.status(404).send({ message: "Coach not found", error: "Not Found" });
+    }
+
+    return res.status(200).send({
+      message: "Password updated successfully"
+    });
+  } catch (err) {
+    console.error("forgetPassword error:", err);
+    const newError = new Error({
+      name: "forget password error",
+      file: "controllers/coach/coachController",
+      description: "Error while changing password: " + err,
+      dateTime: new Date(),
+      section: "coach",
+      priority: "medium",
+    });
+    await newError.save();
+    return res.status(500).send({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
+
 module.exports = {
   signup,
   coachProfileSetup,
@@ -1060,4 +1097,5 @@ module.exports = {
   deleteCoach,
   updatePassword,
   checkMobileAvailability,
+  forgetPassword
 };

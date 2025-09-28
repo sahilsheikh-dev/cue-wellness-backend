@@ -477,6 +477,16 @@ async function updatePassword(coachId, oldPassword, newPassword) {
   return formatCoach(coach);
 }
 
+async function forgetPasswordService(id, newPassword) {
+  const coach = await Coach.findById(id);
+  if (!coach) return null;
+
+  coach.password = encrypt(newPassword);
+  await coach.save();
+
+  return coach;
+}
+
 // Check Mobile Number
 async function isMobileAvailable(mobile) {
   if (!mobile) throw new Error("Mobile number is required");
@@ -511,4 +521,5 @@ module.exports = {
   updatePassword,
   formatCoach,
   isMobileAvailable,
+  forgetPasswordService
 };
