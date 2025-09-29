@@ -262,7 +262,6 @@ async function addCertificates(coachId, indexes, files) {
       );
       try {
         if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
-        console.log("Deleted certificate:", oldFilePath);
       } catch (err) {
         logWarn("Certificate delete failed:", oldFilePath, err);
       }
@@ -401,7 +400,6 @@ async function setProfilePicture(id, fullFilePath) {
     );
     try {
       if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
-      console.log("Deleted old profile picture:", oldFilePath);
     } catch (err) {
       logWarn("Old profile picture not deleted:", oldFilePath, err);
     }
@@ -438,7 +436,6 @@ async function setWorkAssets(coachId, indexes, files) {
         );
         try {
           if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
-          console.log("Deleted old work asset:", oldFilePath);
         } catch (err) {
           logWarn("Old work asset not deleted:", oldFilePath, err);
         }
@@ -457,7 +454,6 @@ async function setWorkAssets(coachId, indexes, files) {
       );
       try {
         if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
-        console.log("Deleted work asset:", oldFilePath);
       } catch (err) {
         logWarn("Work asset delete failed:", oldFilePath, err);
       }
