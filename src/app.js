@@ -7,6 +7,7 @@ const cors = require("cors");
 const adminRoutes = require("../src/routes/admin/adminRoutes");
 const otpRoutes = require("../src/routes/otpRoutes");
 const coachRoutes = require("../src/routes/coach/coachRoutes");
+const activitiesRoutes = require("./routes/activities/activitiesRoute")
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use(
 app.use("/admin", adminRoutes);
 app.use("/otp", otpRoutes);
 app.use("/coach", coachRoutes);
+app.use("/activities", activitiesRoutes)
 
 // Health check /health default route
 app.get("/health", (req, res) => {
