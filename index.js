@@ -1,5 +1,10 @@
 // index.js
-require("dotenv").config();
+
+// Load .env only in local / non-production
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
+
 const { startServer } = require("./src/server");
 
 function logDeploymentEnvVariables() {
@@ -36,16 +41,17 @@ function logDeploymentEnvVariables() {
     "GITHUB_SHA",
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
-    "GITHUB_SERVER_URL"
+    "GITHUB_SERVER_URL",
   ];
 
   console.log("=== Deployment Environment Variables ===");
-  keys.forEach(key => console.log(`${key}: ${process.env[key] || "NOT SET"}`));
+  keys.forEach((key) =>
+    console.log(`${key}: ${process.env[key] || "NOT SET"}`)
+  );
   console.log("=======================================");
 }
+
 logDeploymentEnvVariables();
-
-
 
 // Start server
 startServer();

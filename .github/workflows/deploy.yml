@@ -77,6 +77,9 @@ jobs:
             echo "📦 Installing dependencies"
             npm install --omit=dev
 
+            # --- FORCE PRODUCTION MODE ---
+            export NODE_ENV=production
+
             # --- EXPORT ENV VARIABLES ---
             export CRYPTR_SECRET="${{ secrets.CRYPTR_SECRET }}"
             export EMAIL_PASSWORD="${{ secrets.EMAIL_PASSWORD }}"
