@@ -7,36 +7,7 @@ const permissions = require("../../configs/permissionConfig");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-
-const {
-  UPLOADS_BASE_PATH,
-  PROFILE_PIC_PATH,
-  CERTIFICATES_PATH,
-  WORK_IMAGES_PATH,
-} = process.env;
-// Utility: build multer storage
-function makeStorage(assetPath) {
-  const uploadPath = UPLOADS_BASE_PATH+"/"+assetPath; // absolute path from env (e.g. /Users/.../Documents)
-
-  if (!fs.existsSync(uploadPath)) {
-    fs.mkdirSync(uploadPath, { recursive: true });
-  }
-
-  return multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadPath),
-    filename: (req, file, cb) =>
-      cb(
-        null,
-        `certificate_${Date.now()}_${Math.round(
-          Math.random() * 1e9
-        )}${path.extname(file.originalname)}`
-      ),
-  });
-}
-
-const uploadProfilePic = multer({ storage: makeStorage(PROFILE_PIC_PATH) });
-const uploadCertificates = multer({ storage: makeStorage(CERTIFICATES_PATH) });
-const uploadWorkAsset = multer({ storage: makeStorage(WORK_IMAGES_PATH) });
+const { profilePicUpload, certificateUpload, workAssetUpload } = require("../../configs/uploadConfig");
 
 // Public routes
 router.post("/signup", coachController.signup);
@@ -48,7 +19,7 @@ router.post("/check-mobile", coachController.checkMobileAvailability);
 router.put("/forget-password", coachController.forgetPassword);
 
 // Authenticated coach routes
-router.get("/gerMyInfo", verifyCoach(), coachController.getPersonalInfo);
+router.get("/getMyInfo", verifyCoach(), coachController.getPersonalInfo);
 router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
 router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
 router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
@@ -57,9 +28,10 @@ router.patch("/saveStory", verifyCoach(), coachController.saveStory);
 router.patch("/coachAgreementTerms", verifyCoach(), coachController.coachAgreementTerms)
 
 // Uploads
-router.post("/upload-profile-picture", verifyCoach(), uploadProfilePic.single("profilePicture"), coachController.uploadProfilePicture);
-router.post("/upload-certificates", verifyCoach(), uploadCertificates.array("certificates", 10), coachController.uploadCertificates);
-router.patch("/upload-work-asset", verifyCoach(), uploadWorkAsset.array("workAsset", 3), coachController.uploadWorkAssets);
+router.post("/upload-profile-picture", verifyCoach(), profilePicUpload.single("profilePicture"), coachController.uploadProfilePicture);
+router.post("/upload-certificates", verifyCoach(), certificateUpload.array("certificates", 10), coachController.uploadCertificates);
+router.patch("/upload-work-asset", verifyCoach(), workAssetUpload.array("workAsset", 3), coachController.uploadWorkAssets);
+
 
 // Agreement & sessions
 router.post("/save-agreement", verifyCoach(), coachController.saveAgreement);

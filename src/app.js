@@ -10,6 +10,9 @@ const coachRoutes = require("../src/routes/coach/coachRoutes");
 
 const app = express();
 
+// Read upload base path from .env
+const { UPLOADS_BASE_PATH } = process.env;
+
 // Read allowed origins from .env
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
@@ -46,5 +49,8 @@ app.get("/health", (req, res) => {
 app.get("/", (req, res) => {
   res.send("Welcome to Cue Wellness Backend API 🚀");
 });
+
+// static middleware to serve images/videos from /uploads:
+app.use("/uploads", express.static(UPLOADS_BASE_PATH));
 
 module.exports = app;
