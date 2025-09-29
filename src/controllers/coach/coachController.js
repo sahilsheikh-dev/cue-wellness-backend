@@ -679,6 +679,8 @@ async function uploadWorkAssets(req, res) {
       "video/mp4",
       "video/mkv",
       "video/avi",
+      "video/quicktime",
+      "application/octet-stream",
     ];
     for (const f of files) {
       if (!allowedTypes.includes(f.mimetype)) {
