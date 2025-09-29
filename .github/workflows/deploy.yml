@@ -70,8 +70,8 @@ jobs:
               git clone git@github.com:sahilsheikh-dev/cue-wellness-backend.git .
             else
               echo "⬇️ Pulling latest changes"
-              git reset --hard
-              git pull origin main
+              git fetch origin main
+              git reset --hard origin/main
             fi
 
             echo "📦 Installing dependencies"
