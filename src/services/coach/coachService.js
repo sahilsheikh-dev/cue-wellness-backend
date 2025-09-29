@@ -13,8 +13,6 @@ const {
   SERVER_BASE_URL,
 } = process.env;
 
-const BASE_URL = SERVER_BASE_URL || "http://localhost:9000";
-
 /**
  * Note: this service contains ALL database operations and formatting/transformations.
  * Controller should NOT do any DB calls.
@@ -224,11 +222,17 @@ async function addCertificates(coachId, indexes, files) {
   const coach = await Coach.findById(coachId);
   if (!coach) return null;
 
+  console.log("BEGAWO", UPLOADS_BASE_PATH);
+  console.log("BEGAWO", PROFILE_PIC_PATH);
+  console.log("BEGAWO", CERTIFICATES_PATH);
+  console.log("BEGAWO", WORK_IMAGES_PATH);
+  console.log("BEGAWO", SERVER_BASE_URL);
+
   const fileMap = {};
   for (let i = 0; i < files.length; i++) {
     fileMap[
       indexes[i]
-    ] = `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${files[i].filename}`;
+    ] = `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${files[i].filename}`;
   }
 
   for (const idx of indexes) {
@@ -355,7 +359,7 @@ function formatCoach(doc) {
     ) {
       const filename = stored.split(path.sep).pop();
       if (filename)
-        return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
+        return `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
     }
 
     // if stored is a relative path like "certificates/filename.jpg" or "profile_pictures/filename.jpg"
@@ -367,17 +371,17 @@ function formatCoach(doc) {
 
       // If folderCandidate matches known env folders use it; else fallback to certificates
       if (folderCandidate === PROFILE_PIC_PATH) {
-        return `${BASE_URL}/uploads/${PROFILE_PIC_PATH}/${filename}`;
+        return `${SERVER_BASE_URL}/uploads/${PROFILE_PIC_PATH}/${filename}`;
       }
       if (folderCandidate === CERTIFICATES_PATH) {
-        return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
+        return `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
       }
       if (folderCandidate === WORK_IMAGES_PATH) {
-        return `${BASE_URL}/uploads/${WORK_IMAGES_PATH}/${filename}`;
+        return `${SERVER_BASE_URL}/uploads/${WORK_IMAGES_PATH}/${filename}`;
       }
 
       // fallback: assume it's certificates
-      return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
+      return `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
     }
 
     // fallback: return original
@@ -434,7 +438,7 @@ async function setProfilePicture(id, fullFilePath) {
   }
 
   const relative = `${PROFILE_PIC_PATH}/${path.basename(fullFilePath)}`;
-  coach.profilePicture = `${BASE_URL}/uploads/${relative}`;
+  coach.profilePicture = `${SERVER_BASE_URL}/uploads/${relative}`;
   await coach.save();
 
   return formatCoach(coach);
@@ -452,7 +456,7 @@ async function setWorkAssets(coachId, indexes, files) {
     if (file) {
       const type = file.mimetype.startsWith("image") ? "image" : "video";
       const relative = `${WORK_IMAGES_PATH}/${file.filename}`;
-      const publicPath = `${BASE_URL}/uploads/${relative}`;
+      const publicPath = `${SERVER_BASE_URL}/uploads/${relative}`;
 
       if (existingAsset) {
         const filename = existingAsset.path.split("/").pop();

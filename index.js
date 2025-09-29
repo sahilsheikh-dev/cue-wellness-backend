@@ -42,6 +42,7 @@ function logDeploymentEnvVariables() {
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
     "GITHUB_SERVER_URL",
+    "SERVER_BASE_URL",
   ];
 
   console.log("=== Deployment Environment Variables ===");
