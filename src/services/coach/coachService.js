@@ -3,6 +3,7 @@ const Coach = require("../../models/coach/coachModel");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const getId = require("../../utils/getId.util");
 const validateInputs = require("../../utils/validateInputs.util");
+const path = require("path");
 const fs = require("fs");
 
 const {
@@ -12,6 +13,17 @@ const {
   WORK_IMAGES_PATH,
   SERVER_BASE_URL,
 } = process.env;
+
+const BASE_URL =
+  SERVER_BASE_URL || `http://localhost:${process.env.PORT || 9000}`;
+
+function logWarn(prefix, filePath, err) {
+  console.warn(
+    prefix,
+    filePath,
+    process.env.NODE_ENV === "development" ? err.stack : err.message
+  );
+}
 
 /**
  * Note: this service contains ALL database operations and formatting/transformations.
@@ -146,6 +158,7 @@ async function updateCoach(id, data) {
   const updated = await Coach.findByIdAndUpdate(id, update, { new: true });
   return updated ? formatCoach(updated) : null;
 }
+
 // coachile profile building service
 async function coachProfileSetupService(payload) {
   // Build only allowed fields
@@ -180,7 +193,7 @@ async function coachProfileSetupService(payload) {
     { new: true }
   );
 
-  return updatedCoach;
+  return formatCoach(updatedCoach);
 }
 
 async function saveStoryService(payload) {
@@ -191,7 +204,7 @@ async function saveStoryService(payload) {
     { new: true }
   );
 
-  return coach;
+  return formatCoach(coach);
 }
 
 async function coachAgreementTermsService(payload) {
@@ -201,7 +214,7 @@ async function coachAgreementTermsService(payload) {
     { new: true }
   );
 
-  return coach;
+  return formatCoach(coach);
 }
 
 // admin verify: change status
@@ -226,14 +239,13 @@ async function addCertificates(coachId, indexes, files) {
   for (let i = 0; i < files.length; i++) {
     fileMap[
       indexes[i]
-    ] = `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${files[i].filename}`;
+    ] = `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${files[i].filename}`;
   }
 
   for (const idx of indexes) {
     const existingCertIndex = coach.certificates.findIndex(
       (c) => c.index === idx
     );
-
     if (fileMap[idx]) {
       if (existingCertIndex !== -1) {
         coach.certificates[existingCertIndex].path = fileMap[idx];
@@ -241,24 +253,25 @@ async function addCertificates(coachId, indexes, files) {
         coach.certificates.push({ index: idx, path: fileMap[idx] });
       }
     } else if (existingCertIndex !== -1) {
-      // Remove from DB + delete old file
       const oldUrl = coach.certificates[existingCertIndex].path;
+      const filename = oldUrl.split("/").pop();
       const oldFilePath = path.join(
         UPLOADS_BASE_PATH,
         CERTIFICATES_PATH,
-        path.basename(oldUrl)
+        filename
       );
       try {
         if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+        console.log("Deleted certificate:", oldFilePath);
       } catch (err) {
-        console.warn("Certificate delete failed:", oldFilePath);
+        logWarn("Certificate delete failed:", oldFilePath, err);
       }
       coach.certificates.splice(existingCertIndex, 1);
     }
   }
 
   await coach.save();
-  return coach;
+  return formatCoach(coach);
 }
 
 // save agreement
@@ -329,86 +342,47 @@ async function toggleSaveCoach(coachId, savedCoachId, action = "add") {
 // helper: format coach for responses (remove sensitive fields, normalize media paths)
 function formatCoach(doc) {
   if (!doc) return null;
-
-  // convert mongoose doc -> plain object
   const d = doc.toObject ? doc.toObject() : JSON.parse(JSON.stringify(doc));
-
-  // Remove sensitive fields
   delete d.password;
 
-  // Helper: normalize a stored path/url into a public URL
   const normalizeToPublicUrl = (stored) => {
     if (!stored) return stored;
+    if (/^https?:\/\//i.test(stored)) return stored;
 
-    // already a full URL
-    if (typeof stored === "string" && /^https?:\/\//i.test(stored)) {
-      return stored;
-    }
-
-    // if stored looks like an absolute filesystem path, extract filename
-    // e.g. /home/.../uploads/certificates/filename.jpg -> filename.jpg
-    if (
-      typeof stored === "string" &&
-      (stored.includes(path.sep) || stored.startsWith("/"))
-    ) {
+    if (stored.includes(path.sep) || stored.startsWith("/")) {
       const filename = stored.split(path.sep).pop();
-      if (filename)
-        return `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
+      return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
     }
 
-    // if stored is a relative path like "certificates/filename.jpg" or "profile_pictures/filename.jpg"
-    if (typeof stored === "string" && stored.includes("/")) {
-      // If it already contains 'uploads' part, try to find the subfolder and filename
+    if (stored.includes("/")) {
       const parts = stored.split("/");
       const filename = parts.pop();
       const folderCandidate = parts.length ? parts[0] : null;
-
-      // If folderCandidate matches known env folders use it; else fallback to certificates
-      if (folderCandidate === PROFILE_PIC_PATH) {
-        return `${SERVER_BASE_URL}/uploads/${PROFILE_PIC_PATH}/${filename}`;
-      }
-      if (folderCandidate === CERTIFICATES_PATH) {
-        return `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
-      }
-      if (folderCandidate === WORK_IMAGES_PATH) {
-        return `${SERVER_BASE_URL}/uploads/${WORK_IMAGES_PATH}/${filename}`;
-      }
-
-      // fallback: assume it's certificates
-      return `${SERVER_BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
+      if (folderCandidate === PROFILE_PIC_PATH)
+        return `${BASE_URL}/uploads/${PROFILE_PIC_PATH}/${filename}`;
+      if (folderCandidate === CERTIFICATES_PATH)
+        return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
+      if (folderCandidate === WORK_IMAGES_PATH)
+        return `${BASE_URL}/uploads/${WORK_IMAGES_PATH}/${filename}`;
+      return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
     }
-
-    // fallback: return original
     return stored;
   };
 
-  // Normalize profilePicture
-  if (d.profilePicture) {
+  if (d.profilePicture)
     d.profilePicture = normalizeToPublicUrl(d.profilePicture);
-  }
-
-  // Normalize certificates paths (if any)
   if (Array.isArray(d.certificates)) {
-    d.certificates = d.certificates.map((c) => {
-      if (!c) return c;
-      return {
-        ...c,
-        path: normalizeToPublicUrl(c.path),
-      };
-    });
+    d.certificates = d.certificates.map((c) => ({
+      ...c,
+      path: normalizeToPublicUrl(c.path),
+    }));
   }
-
-  // Normalize workAssets paths (if any)
   if (Array.isArray(d.workAssets)) {
-    d.workAssets = d.workAssets.map((w) => {
-      if (!w) return w;
-      return {
-        ...w,
-        path: normalizeToPublicUrl(w.path),
-      };
-    });
+    d.workAssets = d.workAssets.map((w) => ({
+      ...w,
+      path: normalizeToPublicUrl(w.path),
+    }));
   }
-
   return d;
 }
 
@@ -418,7 +392,8 @@ async function setProfilePicture(id, fullFilePath) {
   if (!coach) return null;
 
   if (coach.profilePicture) {
-    const filename = coach.profilePicture.split("/").pop();
+    const oldUrl = coach.profilePicture;
+    const filename = oldUrl.split("/").pop();
     const oldFilePath = path.join(
       UPLOADS_BASE_PATH,
       PROFILE_PIC_PATH,
@@ -426,18 +401,19 @@ async function setProfilePicture(id, fullFilePath) {
     );
     try {
       if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+      console.log("Deleted old profile picture:", oldFilePath);
     } catch (err) {
-      console.warn("Old profile picture not deleted:", oldFilePath);
+      logWarn("Old profile picture not deleted:", oldFilePath, err);
     }
   }
 
   const relative = `${PROFILE_PIC_PATH}/${path.basename(fullFilePath)}`;
-  coach.profilePicture = `${SERVER_BASE_URL}/uploads/${relative}`;
+  coach.profilePicture = `${BASE_URL}/uploads/${relative}`;
   await coach.save();
-
   return formatCoach(coach);
 }
 
+// add work assets
 async function setWorkAssets(coachId, indexes, files) {
   const coach = await Coach.findById(coachId);
   if (!coach) return null;
@@ -450,10 +426,11 @@ async function setWorkAssets(coachId, indexes, files) {
     if (file) {
       const type = file.mimetype.startsWith("image") ? "image" : "video";
       const relative = `${WORK_IMAGES_PATH}/${file.filename}`;
-      const publicPath = `${SERVER_BASE_URL}/uploads/${relative}`;
+      const publicPath = `${BASE_URL}/uploads/${relative}`;
 
       if (existingAsset) {
-        const filename = existingAsset.path.split("/").pop();
+        const oldUrl = existingAsset.path;
+        const filename = oldUrl.split("/").pop();
         const oldFilePath = path.join(
           UPLOADS_BASE_PATH,
           WORK_IMAGES_PATH,
@@ -461,17 +438,18 @@ async function setWorkAssets(coachId, indexes, files) {
         );
         try {
           if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+          console.log("Deleted old work asset:", oldFilePath);
         } catch (err) {
-          console.warn("Old work asset not deleted:", oldFilePath);
+          logWarn("Old work asset not deleted:", oldFilePath, err);
         }
-
         existingAsset.path = publicPath;
         existingAsset.type = type;
       } else {
         coach.workAssets.push({ index: idx, path: publicPath, type });
       }
     } else if (existingAsset) {
-      const filename = existingAsset.path.split("/").pop();
+      const oldUrl = existingAsset.path;
+      const filename = oldUrl.split("/").pop();
       const oldFilePath = path.join(
         UPLOADS_BASE_PATH,
         WORK_IMAGES_PATH,
@@ -479,10 +457,10 @@ async function setWorkAssets(coachId, indexes, files) {
       );
       try {
         if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+        console.log("Deleted work asset:", oldFilePath);
       } catch (err) {
-        console.warn("Work asset delete failed:", oldFilePath);
+        logWarn("Work asset delete failed:", oldFilePath, err);
       }
-
       coach.workAssets = coach.workAssets.filter((w) => w.index !== idx);
     }
   }
@@ -571,7 +549,7 @@ async function forgetPasswordService(mobile, newPassword) {
   coach.password = encrypt(newPassword);
   await coach.save();
 
-  return coach;
+  return formatCoach(coach);
 }
 
 // Check Mobile Number
