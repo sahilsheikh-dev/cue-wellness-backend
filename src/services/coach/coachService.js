@@ -221,15 +221,23 @@ async function addCertificates(coachId, indexes, files) {
 
   // Iterate over all indexes sent from frontend
   for (const idx of indexes) {
-    const existingCertIndex = coach.certificates.findIndex(c => c.index === idx);
+    const existingCertIndex = coach.certificates.findIndex(
+      (c) => c.index === idx
+    );
 
     // Check if a file is provided for this index
     if (fileMap[idx]) {
       // File is uploaded → replace or add
       if (existingCertIndex !== -1) {
         // Delete old file
-        try { fs.unlinkSync(coach.certificates[existingCertIndex].path); } 
-        catch (err) { console.warn("Old file not found:", coach.certificates[existingCertIndex].path); }
+        try {
+          fs.unlinkSync(coach.certificates[existingCertIndex].path);
+        } catch (err) {
+          console.warn(
+            "Old file not found:",
+            coach.certificates[existingCertIndex].path
+          );
+        }
 
         coach.certificates[existingCertIndex].path = fileMap[idx]; // update path
       } else {
@@ -239,8 +247,14 @@ async function addCertificates(coachId, indexes, files) {
     } else {
       // No file → delete existing record and file
       if (existingCertIndex !== -1) {
-        try { fs.unlinkSync(coach.certificates[existingCertIndex].path); } 
-        catch (err) { console.warn("File not found:", coach.certificates[existingCertIndex].path); }
+        try {
+          fs.unlinkSync(coach.certificates[existingCertIndex].path);
+        } catch (err) {
+          console.warn(
+            "File not found:",
+            coach.certificates[existingCertIndex].path
+          );
+        }
 
         coach.certificates.splice(existingCertIndex, 1); // remove from array
       }
@@ -250,8 +264,6 @@ async function addCertificates(coachId, indexes, files) {
   await coach.save();
   return coach;
 }
-
-
 
 // save agreement
 async function saveAgreement(id, title, contentArr) {
@@ -342,7 +354,10 @@ async function setProfilePicture(id, fullFilePath) {
     try {
       fs.unlinkSync(coach.profilePicture);
     } catch (err) {
-      console.warn("Old profile picture not found or could not be deleted:", coach.profilePicture);
+      console.warn(
+        "Old profile picture not found or could not be deleted:",
+        coach.profilePicture
+      );
     }
   }
 
@@ -374,15 +389,18 @@ async function setWorkAssets(coachId, indexes, files) {
   for (let i = 0; i < indexes.length; i++) {
     const idx = indexes[i];
     const file = files.find((f, fIndex) => indexes[fIndex] === idx);
-    const existingAsset = coach.workAssets.find(w => w.index === idx);
+    const existingAsset = coach.workAssets.find((w) => w.index === idx);
 
     if (file) {
       const type = file.mimetype.startsWith("image") ? "image" : "video";
 
       if (existingAsset) {
         // Delete old file
-        try { fs.unlinkSync(existingAsset.path); } 
-        catch (err) { console.warn("Old work asset not found:", existingAsset.path); }
+        try {
+          fs.unlinkSync(existingAsset.path);
+        } catch (err) {
+          console.warn("Old work asset not found:", existingAsset.path);
+        }
 
         // Update existing asset
         existingAsset.path = file.path;
@@ -394,10 +412,13 @@ async function setWorkAssets(coachId, indexes, files) {
     } else {
       // No file provided → delete existing asset if any
       if (existingAsset) {
-        try { fs.unlinkSync(existingAsset.path); } 
-        catch (err) { console.warn("Old work asset not found:", existingAsset.path); }
+        try {
+          fs.unlinkSync(existingAsset.path);
+        } catch (err) {
+          console.warn("Old work asset not found:", existingAsset.path);
+        }
 
-        coach.workAssets = coach.workAssets.filter(w => w.index !== idx);
+        coach.workAssets = coach.workAssets.filter((w) => w.index !== idx);
       }
     }
   }
@@ -477,8 +498,10 @@ async function updatePassword(coachId, oldPassword, newPassword) {
   return formatCoach(coach);
 }
 
-async function forgetPasswordService(id, newPassword) {
-  const coach = await Coach.findById(id);
+async function forgetPasswordService(mobile, newPassword) {
+  if (!mobile) throw new Error("Mobile number is required");
+
+  const coach = await Coach.findOne({ mobile });
   if (!coach) return null;
 
   coach.password = encrypt(newPassword);
@@ -521,5 +544,5 @@ module.exports = {
   updatePassword,
   formatCoach,
   isMobileAvailable,
-  forgetPasswordService
+  forgetPasswordService,
 };

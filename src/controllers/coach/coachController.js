@@ -334,7 +334,9 @@ async function uploadCertificates(req, res) {
 
     indexes = indexes.map(Number);
     if (indexes.some(isNaN)) {
-      return res.status(400).json({ message: "Invalid certificate index provided" });
+      return res
+        .status(400)
+        .json({ message: "Invalid certificate index provided" });
     }
 
     // files may be empty if user wants to delete a certificate
@@ -380,7 +382,6 @@ async function uploadCertificates(req, res) {
     });
   }
 }
-
 
 // Save agreement
 async function saveAgreement(req, res) {
@@ -619,13 +620,18 @@ const { list, getById, likeActivity, dislikeActivity, saveCoach, unsaveCoach } =
 async function uploadProfilePicture(req, res) {
   try {
     if (!req.file) {
-      return res.status(400).send({ message: "No file uploaded", error: "Bad Request" });
+      return res
+        .status(400)
+        .send({ message: "No file uploaded", error: "Bad Request" });
     }
 
     // Use full path for storing in DB
     const fullFilePath = req.file.path;
 
-    const updated = await coachService.setProfilePicture(req.coach._id, fullFilePath);
+    const updated = await coachService.setProfilePicture(
+      req.coach._id,
+      fullFilePath
+    );
 
     res.status(200).send({
       message: "Profile picture uploaded successfully",
@@ -660,25 +666,35 @@ async function uploadWorkAssets(req, res) {
 
     if (!Array.isArray(indexes)) indexes = [indexes];
     indexes = indexes.map(Number);
-    if (indexes.some(isNaN)) return res.status(400).json({ message: "Invalid index" });
+    if (indexes.some(isNaN))
+      return res.status(400).json({ message: "Invalid index" });
 
     const files = req.files || [];
 
     // Validate file types
     const allowedTypes = [
-      "image/jpeg", "image/png", "image/jpg",
-      "video/mp4", "video/mkv", "video/avi"
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "video/mp4",
+      "video/mkv",
+      "video/avi",
     ];
     for (const f of files) {
       if (!allowedTypes.includes(f.mimetype)) {
         return res.status(415).json({
-          message: "Invalid file type. Only images and videos allowed"
+          message: "Invalid file type. Only images and videos allowed",
         });
       }
     }
 
-    const updatedCoach = await coachService.setWorkAssets(coachId, indexes, files);
-    if (!updatedCoach) return res.status(404).json({ message: "Coach not found" });
+    const updatedCoach = await coachService.setWorkAssets(
+      coachId,
+      indexes,
+      files
+    );
+    if (!updatedCoach)
+      return res.status(404).json({ message: "Coach not found" });
 
     const uploaded = [];
     const deleted = [];
@@ -695,7 +711,6 @@ async function uploadWorkAssets(req, res) {
       deleted,
       data: updatedCoach.workAssets,
     });
-
   } catch (err) {
     console.error("uploadWorkAssets:", err);
     const newError = new Error({
@@ -707,10 +722,11 @@ async function uploadWorkAssets(req, res) {
       priority: "high",
     });
     await newError.save();
-    res.status(500).json({ message: "Internal Server Error", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: err.message });
   }
 }
-
 
 const checkCookie = async (req, res) => {
   try {
@@ -845,7 +861,7 @@ async function coachProfileSetup(req, res) {
 }
 
 async function saveStory(req, res) {
-try {
+  try {
     const { id, story } = req.body;
 
     if (!id || !story) {
@@ -857,7 +873,7 @@ try {
 
     const savedStory = await coachService.saveStoryService({ id, story });
 
-  if (!savedStory) {
+    if (!savedStory) {
       return res
         .status(404)
         .send({ message: "Coach not found", error: "Not Found" });
@@ -869,7 +885,7 @@ try {
     });
   } catch (err) {
     console.error("saveStory error:", err);
-      const newError = new Error({
+    const newError = new Error({
       name: "save story error",
       file: "controllers/coach/coachController",
       description: "Error while saving the story: " + err,
@@ -885,8 +901,8 @@ try {
   }
 }
 
-async function coachAgreementTerms(req,res) {
-try {
+async function coachAgreementTerms(req, res) {
+  try {
     const { id, agreement_terms } = req.body; // both come from body
 
     if (!validateInputs(id)) {
@@ -903,7 +919,10 @@ try {
       });
     }
 
-    const coachAgreement = await coachService.coachAgreementTermsService({id, agreement_terms});
+    const coachAgreement = await coachService.coachAgreementTermsService({
+      id,
+      agreement_terms,
+    });
 
     if (!coachAgreement) {
       return res.status(404).json({
@@ -1034,24 +1053,41 @@ async function checkMobileAvailability(req, res) {
   }
 }
 
+// Forget Password (by mobile number instead of id)
 async function forgetPassword(req, res) {
   try {
-    const { id, password } = req.body;
+    const { mobile, newPassword } = req.body;
 
-    if (!id || !password) {
-      return res
-        .status(400)
-        .send({ message: "ID and password are required", error: "Bad Request" });
+    // Basic validation
+    if (!mobile || !newPassword) {
+      return res.status(400).send({
+        message: "Mobile number and new password are required",
+        error: "Bad Request",
+      });
     }
 
-    const updatedCoach = await coachService.forgetPasswordService(id, password);
+    // Extra validation for password strength
+    if (newPassword.length < 6) {
+      return res.status(400).send({
+        message: "Password must be at least 6 characters long",
+        error: "Bad Request",
+      });
+    }
+
+    const updatedCoach = await coachService.forgetPasswordService(
+      mobile,
+      newPassword
+    );
 
     if (!updatedCoach) {
-      return res.status(404).send({ message: "Coach not found", error: "Not Found" });
+      return res.status(404).send({
+        message: "Coach not found with this mobile",
+        error: "Not Found",
+      });
     }
 
     return res.status(200).send({
-      message: "Password updated successfully"
+      message: "Password updated successfully",
     });
   } catch (err) {
     console.error("forgetPassword error:", err);
@@ -1097,5 +1133,5 @@ module.exports = {
   deleteCoach,
   updatePassword,
   checkMobileAvailability,
-  forgetPassword
+  forgetPassword,
 };

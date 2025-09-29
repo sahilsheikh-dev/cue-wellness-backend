@@ -17,15 +17,15 @@ const CoachSchema = new mongoose.Schema(
     profilePicture: { type: String }, // relative path or URL
     certificates: [
       {
-      index:{type:Number},
-      path:{type:String}
-    }
-  ],
+        index: { type: Number },
+        path: { type: String },
+      },
+    ],
     workAssets: [
       {
         type: { type: String }, // image / video
-        path: {type:String},
-        index: {type:Number}
+        path: { type: String },
+        index: { type: Number },
       },
     ],
 
