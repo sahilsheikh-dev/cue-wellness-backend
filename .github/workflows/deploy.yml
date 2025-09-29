@@ -106,7 +106,7 @@ jobs:
             export REMOTE_DB_IP="${{ vars.REMOTE_DB_IP }}"
             export REMOTE_DB_NAME="${{ vars.REMOTE_DB_NAME }}"
             export UPLOADS_BASE_PATH="${{ vars.UPLOADS_BASE_PATH }}"
-            export WORK_IMAGES_PATH="${{ vars.WORK_IMAGES_PATH }}"
+            export WORK_ASSETS_PATH="${{ vars.WORK_ASSETS_PATH }}"
             export SERVER_BASE_URL="${{ vars.SERVER_BASE_URL }}"
             export DEPLOYMENT_TIMESTAMP="${{ steps.set_time.outputs.value }}"
             export SERVICE_NAME="${{ steps.service_name.outputs.value }}"

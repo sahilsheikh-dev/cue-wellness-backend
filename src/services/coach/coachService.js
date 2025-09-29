@@ -10,7 +10,7 @@ const {
   UPLOADS_BASE_PATH,
   PROFILE_PIC_PATH,
   CERTIFICATES_PATH,
-  WORK_IMAGES_PATH,
+  WORK_ASSETS_PATH,
   SERVER_BASE_URL,
 } = process.env;
 
@@ -361,8 +361,8 @@ function formatCoach(doc) {
         return `${BASE_URL}/uploads/${PROFILE_PIC_PATH}/${filename}`;
       if (folderCandidate === CERTIFICATES_PATH)
         return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
-      if (folderCandidate === WORK_IMAGES_PATH)
-        return `${BASE_URL}/uploads/${WORK_IMAGES_PATH}/${filename}`;
+      if (folderCandidate === WORK_ASSETS_PATH)
+        return `${BASE_URL}/uploads/${WORK_ASSETS_PATH}/${filename}`;
       return `${BASE_URL}/uploads/${CERTIFICATES_PATH}/${filename}`;
     }
     return stored;
@@ -423,7 +423,7 @@ async function setWorkAssets(coachId, indexes, files) {
 
     if (file) {
       const type = file.mimetype.startsWith("image") ? "image" : "video";
-      const relative = `${WORK_IMAGES_PATH}/${file.filename}`;
+      const relative = `${WORK_ASSETS_PATH}/${file.filename}`;
       const publicPath = `${BASE_URL}/uploads/${relative}`;
 
       if (existingAsset) {
@@ -431,7 +431,7 @@ async function setWorkAssets(coachId, indexes, files) {
         const filename = oldUrl.split("/").pop();
         const oldFilePath = path.join(
           UPLOADS_BASE_PATH,
-          WORK_IMAGES_PATH,
+          WORK_ASSETS_PATH,
           filename
         );
         try {
@@ -449,7 +449,7 @@ async function setWorkAssets(coachId, indexes, files) {
       const filename = oldUrl.split("/").pop();
       const oldFilePath = path.join(
         UPLOADS_BASE_PATH,
-        WORK_IMAGES_PATH,
+        WORK_ASSETS_PATH,
         filename
       );
       try {

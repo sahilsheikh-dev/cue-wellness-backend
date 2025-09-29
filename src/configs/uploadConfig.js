@@ -7,7 +7,7 @@ const {
   UPLOADS_BASE_PATH,
   PROFILE_PIC_PATH,
   CERTIFICATES_PATH,
-  WORK_IMAGES_PATH,
+  WORK_ASSETS_PATH,
 } = process.env;
 
 function makeStorage(subFolder, prefix) {
@@ -35,5 +35,5 @@ module.exports = {
   certificateUpload: multer({
     storage: makeStorage(CERTIFICATES_PATH, "certificate"),
   }),
-  workAssetUpload: multer({ storage: makeStorage(WORK_IMAGES_PATH, "work") }),
+  workAssetUpload: multer({ storage: makeStorage(WORK_ASSETS_PATH, "work") }),
 };

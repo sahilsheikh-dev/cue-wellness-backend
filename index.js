@@ -33,7 +33,7 @@ function logDeploymentEnvVariables() {
     "REMOTE_DB_IP",
     "REMOTE_DB_NAME",
     "UPLOADS_BASE_PATH",
-    "WORK_IMAGES_PATH",
+    "WORK_ASSETS_PATH",
     "DEPLOYMENT_TIMESTAMP",
     "SERVICE_NAME",
     "HOSTNAME",
