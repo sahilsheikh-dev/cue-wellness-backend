@@ -222,12 +222,6 @@ async function addCertificates(coachId, indexes, files) {
   const coach = await Coach.findById(coachId);
   if (!coach) return null;
 
-  console.log("BEGAWO", UPLOADS_BASE_PATH);
-  console.log("BEGAWO", PROFILE_PIC_PATH);
-  console.log("BEGAWO", CERTIFICATES_PATH);
-  console.log("BEGAWO", WORK_IMAGES_PATH);
-  console.log("BEGAWO", SERVER_BASE_URL);
-
   const fileMap = {};
   for (let i = 0; i < files.length; i++) {
     fileMap[
