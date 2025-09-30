@@ -32,7 +32,7 @@ const CoachSchema = new mongoose.Schema(
     token: { type: String },
     status: {
       type: String,
-      enum: ["unverified", "pending", "verified"],
+      enum: ["unverified", "pending", "verified", "deleted", "blocked"],
       default: "unverified",
     },
     isBlocked: { type: Boolean, default: false },
