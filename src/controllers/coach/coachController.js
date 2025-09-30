@@ -359,7 +359,7 @@ async function uploadCertificates(req, res) {
       else deleted.push({ index: idx });
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       message: "Certificates processed successfully",
       uploaded,
       deleted,
@@ -376,7 +376,7 @@ async function uploadCertificates(req, res) {
       priority: "high",
     });
     await newError.save();
-    return res.status(500).json({
+    res.status(500).json({
       message: "Internal Server Error",
       error: err.message,
     });
