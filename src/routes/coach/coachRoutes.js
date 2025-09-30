@@ -25,7 +25,7 @@ router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
 router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
 router.patch("/coachProfileSetup",verifyCoach(), coachController.coachProfileSetup);
 router.patch("/saveStory", verifyCoach(), coachController.saveStory);
-router.patch("/coachAgreementTerms", verifyCoach(), coachController.coachAgreementTerms)
+router.patch("/coachAgreementTerms", verifyCoach(), coachController.coachAgreementTerms);
 
 // Uploads
 router.post("/upload-profile-picture", verifyCoach(), profilePicUpload.single("profilePicture"), coachController.uploadProfilePicture);

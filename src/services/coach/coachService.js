@@ -208,13 +208,13 @@ async function saveStoryService(payload) {
 }
 
 async function coachAgreementTermsService(payload) {
-  const coach = Coach.findByIdAndUpdate(
-    { _id: payload.id },
+  const coach = await Coach.findByIdAndUpdate(
+    payload.id,
     { $set: { agreement_terms: payload.agreement_terms } },
     { new: true }
-  );
+  ).lean(); // <- return plain JS object without Mongoose metadata
 
-  return formatCoach(coach);
+  return coach; // or formatCoach(coach) if you really need custom shaping
 }
 
 // admin verify: change status
