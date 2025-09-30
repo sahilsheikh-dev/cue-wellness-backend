@@ -230,6 +230,17 @@ async function changeCoachStatus(id, status) {
   return formatCoach(coach);
 }
 
+// Block / Unblock coach
+async function toggleBlockStatus(id, isBlocked) {
+  const coach = await Coach.findById(id);
+  if (!coach) return null;
+
+  coach.isBlocked = isBlocked;
+  await coach.save();
+
+  return formatCoach(coach);
+}
+
 // add certificate
 async function addCertificates(coachId, indexes, files) {
   const coach = await Coach.findById(coachId);
@@ -567,6 +578,7 @@ module.exports = {
   listCoaches,
   updateCoach,
   changeCoachStatus,
+  toggleBlockStatus,
   addCertificates,
   saveAgreement,
   saveSessionSlots,

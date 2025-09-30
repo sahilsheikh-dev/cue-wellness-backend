@@ -313,6 +313,42 @@ async function changeStatus(req, res) {
   }
 }
 
+// Admin: Block/Unblock coach
+async function blockUnblockCoach(req, res) {
+  try {
+    const { id } = req.params;
+    const { isBlocked } = req.body; // true = block, false = unblock
+
+    if (typeof isBlocked !== "boolean") {
+      return res.status(400).send({
+        message: "isBlocked must be true or false",
+        error: "Bad Request",
+      });
+    }
+
+    const updated = await coachService.toggleBlockStatus(id, isBlocked);
+    if (!updated) {
+      return res.status(404).send({
+        message: "Coach not found",
+        error: "Not Found",
+      });
+    }
+
+    return res.status(200).send({
+      message: isBlocked
+        ? "Coach blocked successfully"
+        : "Coach unblocked successfully",
+      data: updated,
+    });
+  } catch (err) {
+    console.error("blockUnblockCoach error:", err);
+    return res.status(500).send({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
+
 // Upload certificates
 async function uploadCertificates(req, res) {
   try {
@@ -1120,6 +1156,7 @@ module.exports = {
   getPersonalInfo,
   updateProfile,
   changeStatus,
+  blockUnblockCoach,
   uploadCertificates,
   saveAgreement,
   savePricingSlots,

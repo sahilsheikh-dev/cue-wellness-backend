@@ -47,5 +47,6 @@ router.post("/unsave-coach", verifyCoach(), coachController.unsaveCoach);
 router.get("/admin/list", verifyAdmin(permissions["coach:list"]), coachController.list);
 router.get("/admin/get/:id", verifyAdmin(permissions["coach:get"]), coachController.getById);
 router.put("/admin/change-status/:id", verifyAdmin(permissions["coach:changeStatus"]), coachController.changeStatus);
+router.put("/admin/is-block/:id", verifyAdmin(permissions["coach:changeStatus"]), coachController.blockUnblockCoach);
 
 module.exports = router;
