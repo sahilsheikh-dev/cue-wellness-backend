@@ -1,1820 +1,1964 @@
 {
-	"info": {
-		"_postman_id": "73dc63d4-1f94-42f2-9776-1b41e9fa9b03",
-		"name": "Cue Wellness - API Collection (Organized by Module)",
-		"description": "Postman collection reorganized into module folders (OTP, Admin, Coach, Activities). Each request includes 'For' info indicating intended user/role. Based on provided project files.",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "36771282"
-	},
-	"item": [
-		{
-			"name": "OTP",
-			"item": [
-				{
-					"name": "Send OTP Copy",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 201 or 200', function () {",
-									"  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
-									"});",
-									"",
-									"// save otpId if returned",
-									"try {",
-									"  const json = pm.response.json();",
-									"  if (json.otpId) {",
-									"    pm.environment.set('otpId', json.otpId);",
-									"    console.log('Saved otpId to environment');",
-									"  }",
-									"} catch (e) {",
-									"  // ignore non-json response",
-									"}"
-								],
-								"type": "text/javascript",
-								"packages": {},
-								"requests": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone\": \"+971501234567\",\n  \"userType\": \"coach\",\n  \"operation\": \"login\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/otp/send",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"otp",
-								"send"
-							]
-						},
-						"description": "For: Public (clients/coaches). Send OTP to provided phone. Returns encrypted otpId."
-					},
-					"response": []
-				},
-				{
-					"name": "Verify OTP Copy",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () {",
-									"  pm.expect(pm.response.code).to.equal(200);",
-									"});",
-									"",
-									"// If the verify is used in coach signup/login flow, response includes accessToken and coach object.",
-									"try {",
-									"  const json = pm.response.json();",
-									"  if (json.accessToken) {",
-									"    pm.environment.set('coachAccessToken', json.accessToken);",
-									"    console.log('Saved coachAccessToken');",
-									"  }",
-									"  // if response contains recordId (older otp flow), capture it",
-									"  if (json.recordId) pm.environment.set('otp_recordId', json.recordId);",
-									"} catch (e) {",
-									"  // non-json response",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"otpId\": \"{{otpId}}\",\n  \"otp\": \"123456\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/otp/verify",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"otp",
-								"verify"
-							]
-						},
-						"description": "For: Public. Verify OTP."
-					},
-					"response": []
-				},
-				{
-					"name": "Resend OTP Copy",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200 or 201', function () {",
-									"  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
-									"});",
-									"try {",
-									"  const json = pm.response.json();",
-									"  if (json.otpId) pm.environment.set('otpId', json.otpId);",
-									"} catch (e) {}"
-								],
-								"type": "text/javascript",
-								"packages": {},
-								"requests": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"otpId\": \"{{otpId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/otp/resend",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"otp",
-								"resend"
-							]
-						},
-						"description": "For: Public. Resend OTP for provided encrypted otpId. Uses validateOtpId middleware."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Admin",
-			"item": [
-				{
-					"name": "Login (Admin)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () {",
-									"  pm.expect(pm.response.code).to.equal(200);",
-									"});",
-									"try {",
-									"  const json = pm.response.json();",
-									"  if (json.data && json.data.accessToken) {",
-									"    pm.environment.set('adminAccessToken', json.data.accessToken);",
-									"    console.log('Saved adminAccessToken');",
-									"  } else if (json.accessToken) {",
-									"    pm.environment.set('adminAccessToken', json.accessToken);",
-									"    console.log('Saved adminAccessToken (alt)');",
-									"  }",
-									"  // capture refresh cookie if present",
-									"  const cookies = pm.response.headers.get('set-cookie');",
-									"  if (cookies) {",
-									"    // crude parse - look for RefreshToken= in header",
-									"    const matches = cookies.match(/RefreshToken=([^;]+)/);",
-									"    if (matches) pm.environment.set('refreshToken', matches[1]);",
-									"  }",
-									"} catch (e) { console.log('no-json or set-cookie'); }"
-								],
-								"type": "text/javascript",
-								"packages": {},
-								"requests": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"mobile\": \"+919999999999\",\n  \"password\": \"Password@123\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/login",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"login"
-							]
-						},
-						"description": "For: Admin. Login with mobile + password. Returns accessToken and sets RefreshToken cookie."
-					},
-					"response": []
-				},
-				{
-					"name": "Refresh Access Token (Admin)",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"// if we have refreshToken in env, pass it as a cookie header",
-									"const rt = pm.environment.get('refreshToken');",
-									"if (rt) pm.request.headers.upsert({ key: 'Cookie', value: 'RefreshToken=' + rt });"
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () {",
-									"  pm.expect(pm.response.code).to.equal(200);",
-									"});",
-									"try {",
-									"  const json = pm.response.json();",
-									"  if (json.data && json.data.accessToken) pm.environment.set('adminAccessToken', json.data.accessToken);",
-									"} catch (e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/refresh",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"refresh"
-							]
-						},
-						"description": "For: Admin. Use refresh token (cookie or body) to obtain new access token."
-					},
-					"response": []
-				},
-				{
-					"name": "Logout (Admin)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/logout",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"logout"
-							]
-						},
-						"description": "For: Admin. Logout and revoke refresh token."
-					},
-					"response": []
-				},
-				{
-					"name": "Add Admin",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"New Admin\",\n  \"mobile\": \"+911234000000\",\n  \"email\": \"new@cue.com\",\n  \"password\": \"Password123\",\n  \"designation\": \"Manager\",\n  \"permissions\": []\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/add",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"add"
-							]
-						},
-						"description": "For: Admin (superAdmin or permitted). Create a new admin."
-					},
-					"response": []
-				},
-				{
-					"name": "List Admins",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/admin/list",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"list"
-							]
-						},
-						"description": "For: Admin. List admins (query: page, limit)."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Admin by ID",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/admin/get/{{adminId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"get",
-								"{{adminId}}"
-							]
-						},
-						"description": "For: Admin. Get admin details by id."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Admin",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Updated Name\",\n  \"mobile\": \"+911234567891\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/update/{{adminId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"update",
-								"{{adminId}}"
-							]
-						},
-						"description": "For: Admin. Update admin by id."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Admin",
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/admin/delete/{{adminId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"delete",
-								"{{adminId}}"
-							]
-						},
-						"description": "For: Admin. Delete admin by id."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Coach",
-			"item": [
-				{
-					"name": "Signup (Coach)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 201 or 200', function () {",
-									"  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
-									"});",
-									"try { const json = pm.response.json(); if (json.data && json.data.legacyToken) pm.environment.set('legacyToken', json.data.legacyToken); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Coach One\",\n  \"mobile\": \"+971501234567\",\n  \"password\": \"Password123\",\n  \"agree_terms_conditions\": true,\n  \"agree_privacy_policy\": true\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/signup",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"signup"
-							]
-						},
-						"description": "For: Public. Create unverified coach account. Returns encrypted legacyToken."
-					},
-					"response": []
-				},
-				{
-					"name": "Verify OTP (Coach flow)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"otpId\": \"{{otpId}}\",\n  \"otp\": \"123456\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/verify-otp",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"verify-otp"
-							]
-						},
-						"description": "For: Coach (public). Verify OTP to complete signup/login. Returns accessToken and sets CoachRefreshToken cookie."
-					},
-					"response": []
-				},
-				{
-					"name": "Login (Coach)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"mobile\": \"+971501234567\",\n  \"password\": \"Password123\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/login",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"login"
-							]
-						},
-						"description": "For: Coach. Login via mobile + password."
-					},
-					"response": []
-				},
-				{
-					"name": "Refresh Access Token (Coach)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Cookie",
-								"value": "CoachRefreshToken={{coachRefreshToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/refresh-token",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"refresh-token"
-							]
-						},
-						"description": "For: Coach. Exchange CoachRefreshToken for new access token."
-					},
-					"response": []
-				},
-				{
-					"name": "Logout (Coach - revoke current)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							},
-							{
-								"key": "Cookie",
-								"value": "CoachRefreshToken={{coachRefreshToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/logout",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"logout"
-							]
-						},
-						"description": "For: Coach. Revoke the current refresh token."
-					},
-					"response": []
-				},
-				{
-					"name": "Logout All Devices (Coach)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/logout-all",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"logout-all"
-							]
-						},
-						"description": "For: Coach. Clears all refresh tokens for authenticated coach."
-					},
-					"response": []
-				},
-				{
-					"name": "Check Cookie / Token (Coach)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							},
-							{
-								"key": "Cookie",
-								"value": "CoachRefreshToken={{coachRefreshToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/check-cookie",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"check-cookie"
-							]
-						},
-						"description": "For: Coach. Validates access token or exchanges refresh cookie for access token."
-					},
-					"response": []
-				},
-				{
-					"name": "Check Mobile Availability",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"mobile\": \"+971501234567\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/check-mobile",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"check-mobile"
-							]
-						},
-						"description": "For: Public. Check whether mobile number is available for registration."
-					},
-					"response": []
-				},
-				{
-					"name": "Forget Password (Coach)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"mobile\": \"+971501234567\",\n  \"newPassword\": \"NewPass123\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/forget-password",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"forget-password"
-							]
-						},
-						"description": "For: Coach. Reset password using mobile + newPassword."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Profile (Me)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/coach/me",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"me"
-							]
-						},
-						"description": "For: Authenticated Coach. Get own profile."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Profile (PUT /me)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Coach New\",\n  \"email\": \"coach@example.com\",\n  \"city\": \"Dubai\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/me",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"me"
-							]
-						},
-						"description": "For: Authenticated Coach. Update your profile fields."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Coach (DELETE /delete/:id)",
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/coach/delete/{{coachId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"delete",
-								"{{coachId}}"
-							]
-						},
-						"description": "For: Authenticated Coach or Admin with proper permission to delete a coach."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Password (PUT /updatePassword/:id)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"oldPassword\": \"Password123\",\n  \"newPassword\": \"NewPass123\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/updatePassword/{{coachId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"updatePassword",
-								"{{coachId}}"
-							]
-						},
-						"description": "For: Authenticated Coach. Change password by providing old + new."
-					},
-					"response": []
-				},
-				{
-					"name": "Profile Setup (PATCH /profile-setup)",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{coachId}}\",\n  \"email\": \"coach@example.com\",\n  \"dob\": \"01-15-1990\",\n  \"gender\": \"male\",\n  \"city\": \"Dubai\",\n  \"pincode\": 12345\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/profile-setup",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"profile-setup"
-							]
-						},
-						"description": "For: Authenticated Coach. Complete profile details."
-					},
-					"response": []
-				},
-				{
-					"name": "Save Story (PATCH /story)",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{coachId}}\",\n  \"story\": \"I help people...\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/story",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"story"
-							]
-						},
-						"description": "For: Authenticated Coach. Save short story/bio."
-					},
-					"response": []
-				},
-				{
-					"name": "Agreement Terms (PATCH /agreement-terms)",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{coachId}}\",\n  \"agreement_terms\": [\n    {\n      \"type\": \"text\",\n      \"content\": \"Clause 1\"\n    }\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/agreement-terms",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"agreement-terms"
-							]
-						},
-						"description": "For: Authenticated Coach. Update agreement terms."
-					},
-					"response": []
-				},
-				{
-					"name": "Upload Profile Picture (multipart)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "profilePicture",
-									"value": "",
-									"type": "file"
-								}
-							]
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/upload/profile-picture",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"upload",
-								"profile-picture"
-							]
-						},
-						"description": "For: Authenticated Coach. Upload profile picture (form key profilePicture)."
-					},
-					"response": []
-				},
-				{
-					"name": "Upload Certificates (multipart)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "id",
-									"value": "{{coachId}}",
-									"type": "text"
-								},
-								{
-									"key": "index",
-									"value": "0",
-									"type": "text"
-								},
-								{
-									"key": "certificates",
-									"value": "",
-									"type": "file"
-								}
-							]
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/upload/certificates",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"upload",
-								"certificates"
-							]
-						},
-						"description": "For: Authenticated Coach. Upload certificates (provide id and index fields matching files)."
-					},
-					"response": []
-				},
-				{
-					"name": "Upload Work Assets (multipart PATCH)",
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "id",
-									"value": "{{coachId}}",
-									"type": "text"
-								},
-								{
-									"key": "index",
-									"value": "0",
-									"type": "text"
-								},
-								{
-									"key": "workAsset",
-									"value": "",
-									"type": "file"
-								}
-							]
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/upload/work-assets",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"upload",
-								"work-assets"
-							]
-						},
-						"description": "For: Authenticated Coach. Upload images/videos as work assets (max 3)."
-					},
-					"response": []
-				},
-				{
-					"name": "Save Agreement (POST /save-agreement)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Service Agreement\",\n  \"content\": [\n    {\n      \"type\": \"text\",\n      \"content\": \"Terms...\"\n    }\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/save-agreement",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"save-agreement"
-							]
-						},
-						"description": "For: Authenticated Coach. Save agreement content."
-					},
-					"response": []
-				},
-				{
-					"name": "Save Pricing Slots (POST /save-pricing-slots)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"categoryId\": \"cat123\",\n  \"sessionKey\": \"standard\",\n  \"level\": \"beginner\",\n  \"payload\": {\n    \"price\": 50,\n    \"currency\": \"USD\"\n  }\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/save-pricing-slots",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"save-pricing-slots"
-							]
-						},
-						"description": "For: Authenticated Coach. Save pricing/session slot payload."
-					},
-					"response": []
-				},
-				{
-					"name": "Like Activity (POST /like-activity)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{someId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/like-activity",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"like-activity"
-							]
-						},
-						"description": "For: Authenticated Coach. Like an activity by id."
-					},
-					"response": []
-				},
-				{
-					"name": "Dislike Activity (POST /dislike-activity)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{someId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/dislike-activity",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"dislike-activity"
-							]
-						},
-						"description": "For: Authenticated Coach. Remove like for activity."
-					},
-					"response": []
-				},
-				{
-					"name": "Save Coach (POST /save-coach)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{someId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/save-coach",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"save-coach"
-							]
-						},
-						"description": "For: Authenticated Coach. Save another coach (favorite) by id."
-					},
-					"response": []
-				},
-				{
-					"name": "Unsave Coach (POST /unsave-coach)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{coachAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"id\": \"{{someId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/unsave-coach",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"unsave-coach"
-							]
-						},
-						"description": "For: Authenticated Coach. Remove saved coach."
-					},
-					"response": []
-				},
-				{
-					"name": "Admin: List Coaches (GET /admin/list)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/coach/admin/list",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"admin",
-								"list"
-							]
-						},
-						"description": "For: Admin. List coaches (query page, limit, status, q)."
-					},
-					"response": []
-				},
-				{
-					"name": "Admin: Get Coach (GET /admin/get/:id)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/coach/admin/get/{{coachId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"admin",
-								"get",
-								"{{coachId}}"
-							]
-						},
-						"description": "For: Admin. Get coach details by id."
-					},
-					"response": []
-				},
-				{
-					"name": "Admin: Change Status (PUT /admin/change-status/:id)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"status\": \"verified\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/admin/change-status/{{coachId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"admin",
-								"change-status",
-								"{{coachId}}"
-							]
-						},
-						"description": "For: Admin. Change coach status (unverified|pending|verified)."
-					},
-					"response": []
-				},
-				{
-					"name": "Admin: Block/Unblock Coach (PUT /admin/is-block/:id)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"isBlocked\": true\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/coach/admin/is-block/{{coachId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"coach",
-								"admin",
-								"is-block",
-								"{{coachId}}"
-							]
-						},
-						"description": "For: Admin. Set isBlocked true/false."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Activities",
-			"item": [
-				{
-					"name": "Get root activities (public)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
-									"try { const json = pm.response.json(); pm.test('response is array or object', function () { pm.expect(json).to.be.ok; }); } catch(e) {}"
-								],
-								"type": "text/javascript",
-								"packages": {},
-								"requests": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/activities",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities"
-							]
-						},
-						"description": "Public: Returns activities where layer=1 (root). Optional query: ?parent_id=... to list children."
-					},
-					"response": []
-				},
-				{
-					"name": "Get activities by parent id (public, query)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
-									"try { const json = pm.response.json(); if (Array.isArray(json)) pm.environment.set('lastActivitiesCount', json.length); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/activities?parent_id={{activityRootId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities"
-							],
-							"query": [
-								{
-									"key": "parent_id",
-									"value": "{{activityRootId}}"
-								}
-							]
-						},
-						"description": "Public: Return activities where parent_id={{activityRootId}} (children). You can also call GET /activities/:id"
-					},
-					"response": []
-				},
-				{
-					"name": "Get activities by parent id (public, path param)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
-									"try { const json = pm.response.json(); if (json && json.length) pm.environment.set('lastActivitiesCount', json.length); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/activities/{{activityRootId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities",
-								"{{activityRootId}}"
-							]
-						},
-						"description": "Public: Same as query-based endpoint; returns children of the given parent id."
-					},
-					"response": []
-				},
-				{
-					"name": "Create activity (root or sub) - ADMIN",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"// Ensure Authorization header is present if adminAccessToken exists",
-									"const t = pm.environment.get('adminAccessToken');",
-									"if (t) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t }); }"
-								],
-								"type": "text/javascript",
-								"packages": {},
-								"requests": {}
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
-									"try {",
-									"  const json = pm.response.json();",
-									"  // If JSON returns created activity object, try save its id",
-									"  const data = json.data || json;",
-									"  if (data && data._id) {",
-									"    // if it was root (layer 1) save to activityRootId, if layer===2 save to activitySubId",
-									"    if (data.layer === 1 || !data.parent_id) pm.environment.set('activityRootId', data._id);",
-									"    else if (data.layer === 2 || data.parent_id) pm.environment.set('activitySubId', data._id);",
-									"    console.log('Saved activity id(s):', pm.environment.get('activityRootId'), pm.environment.get('activitySubId'));",
-									"  }",
-									"} catch (e) { console.log('create activity test error', e); }"
-								],
-								"type": "text/javascript",
-								"packages": {},
-								"requests": {}
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Meditation Basics\"\n}\n\n// To create a sub-activity under a parent use:\n// {\n//   \"title\": \"Breathing Techniques\",\n//   \"parent_id\": \"<parent_activity_id>\"\n// }\n"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/activities/admin/add",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities",
-								"admin",
-								"add"
-							]
-						},
-						"description": "Admin-only: create root (layer=1) or sub (layer=2) activity in a single endpoint. If request includes parent_id, creates sub-activity and sets parent's contains_subtopic=true."
-					},
-					"response": []
-				},
-				{
-					"name": "Create sub-activity explicit (ADMIN)",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"const t = pm.environment.get('adminAccessToken');",
-									"if (t) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t }); }",
-									"",
-									"// require activityRootId to be present",
-									"if (!pm.environment.get('activityRootId')) {",
-									"  console.warn('Warning: activityRootId not set. Create root activity first or set the variable.');",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 201', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
-									"try { const json = pm.response.json(); const d = json.data || json; if (d && d._id) pm.environment.set('activitySubId', d._id); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"parent_id\": \"{{activityRootId}}\",\n  \"title\": \"Breathing Techniques\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/activities/add-subactivity",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities",
-								"add-subactivity"
-							]
-						},
-						"description": "Admin-only: explicitly add subactivity. Required permission: activities:add (map in permission config)."
-					},
-					"response": []
-				},
-				{
-					"name": "Update activity title (ADMIN)",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"const t = pm.environment.get('adminAccessToken');",
-									"if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });",
-									"if (!pm.environment.get('activityRootId')) console.warn('activityRootId not set.');"
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
-									"try { const json = pm.response.json(); pm.test('updated item returned', function () { pm.expect(json.data || json).to.be.ok; }); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Updated Activity Title\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/activities/{{activityRootId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities",
-								"{{activityRootId}}"
-							]
-						},
-						"description": "Admin-only: update activity title by id. Required permission: activities:update."
-					},
-					"response": []
-				},
-				{
-					"name": "Delete activity (ADMIN)",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"const t = pm.environment.get('adminAccessToken');",
-									"if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });",
-									"if (!pm.environment.get('activityRootId')) console.warn('activityRootId not set — nothing to delete');"
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status is 200 or 204 or 202', function () { pm.expect(pm.response.code).to.be.oneOf([200,202,204]); });",
-									"try { pm.environment.unset('activityRootId'); pm.environment.unset('activitySubId'); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/activities/{{activityRootId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities",
-								"{{activityRootId}}"
-							]
-						},
-						"description": "Admin-only: delete activity by id. If deleting parent, ensure cascade deletes children in service."
-					},
-					"response": []
-				},
-				{
-					"name": "Search / list activities (public) with query & pagination",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('status 200', function () { pm.expect(pm.response.code).to.equal(200); });",
-									"try { const json = pm.response.json(); pm.environment.set('lastSearchResultCount', Array.isArray(json) ? json.length : (json.data ? json.data.length : 0)); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/activities/search?q=meditation&page=1&limit=20",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities",
-								"search"
-							],
-							"query": [
-								{
-									"key": "q",
-									"value": "meditation"
-								},
-								{
-									"key": "page",
-									"value": "1"
-								},
-								{
-									"key": "limit",
-									"value": "20"
-								}
-							]
-						},
-						"description": "Public: search over title (both root & sub-activities). Query params: q, page, limit."
-					},
-					"response": []
-				},
-				{
-					"name": "Example: Create root activity (sample response)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// Mirror of Create activity test to capture ID",
-									"pm.test('status is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
-									"try { const json = pm.response.json(); const data = json.data || json; if (data && data._id) pm.environment.set('activityRootId', data._id); } catch(e) {}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminAccessToken}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Meditation Basics\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/activities",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"activities"
-							]
-						},
-						"description": "Example request. Sample successful response included in description."
-					},
-					"response": []
-				}
-			]
-		}
-	]
+  "info": {
+    "_postman_id": "73dc63d4-1f94-42f2-9776-1b41e9fa9b03",
+    "name": "Cue Wellness - API Collection (Organized by Module)",
+    "description": "Postman collection reorganized into module folders (OTP, Admin, Coach, Activities). Each request includes 'For' info indicating intended user/role. Based on provided project files.\n\nUPDATED: This collection was programmatically modified to:\n- Change upload endpoints to accept a single file field named 'file' and 'id' plus optional 'assetId'.\n- Add pricing endpoints under Coach: POST/GET/PUT/DELETE /coach/pricing.\n- Keep existing endpoints intact; updated formdata for uploads.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "36771282"
+  },
+  "item": [
+    {
+      "name": "OTP",
+      "item": [
+        {
+          "name": "Send OTP Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});",
+                  "",
+                  "// save otpId if returned",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json.otpId) {",
+                  "    pm.environment.set('otpId', json.otpId);",
+                  "    console.log('Saved otpId to environment');",
+                  "  }",
+                  "} catch (e) {",
+                  "  // ignore non-json response",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+971501234567\",\n  \"userType\": \"coach\",\n  \"operation\": \"login\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/otp/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "otp",
+                "send"
+              ]
+            },
+            "description": "For: Public (clients/coaches). Send OTP to provided phone. Returns encrypted otpId."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "// If the verify is used in coach signup/login flow, response includes accessToken and coach object.",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json.accessToken) {",
+                  "    pm.environment.set('coachAccessToken', json.accessToken);",
+                  "    console.log('Saved coachAccessToken');",
+                  "  }",
+                  "  // if response contains recordId (older otp flow), capture it",
+                  "  if (json.recordId) pm.environment.set('otp_recordId', json.recordId);",
+                  "} catch (e) {",
+                  "  // non-json response",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otpId\": \"{{otpId}}\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "For: Public. Verify OTP."
+          },
+          "response": []
+        },
+        {
+          "name": "Resend OTP Copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json.otpId) pm.environment.set('otpId', json.otpId);",
+                  "} catch (e) {}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otpId\": \"{{otpId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/otp/resend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "otp",
+                "resend"
+              ]
+            },
+            "description": "For: Public. Resend OTP for provided encrypted otpId. Uses validateOtpId middleware."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) {",
+                  "    pm.environment.set('adminAccessToken', json.data.accessToken);",
+                  "    console.log('Saved adminAccessToken');",
+                  "  } else if (json.accessToken) {",
+                  "    pm.environment.set('adminAccessToken', json.accessToken);",
+                  "    console.log('Saved adminAccessToken (alt)');",
+                  "  }",
+                  "  // capture refresh cookie if present",
+                  "  const cookies = pm.response.headers.get('set-cookie');",
+                  "  if (cookies) {",
+                  "    // crude parse - look for RefreshToken= in header",
+                  "    const matches = cookies.match(/RefreshToken=([^;]+)/);",
+                  "    if (matches) pm.environment.set('refreshToken', matches[1]);",
+                  "  }",
+                  "} catch (e) { console.log('no-json or set-cookie'); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+919999999999\",\n  \"password\": \"Password@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "login"
+              ]
+            },
+            "description": "For: Admin. Login with mobile + password. Returns accessToken and sets RefreshToken cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Access Token (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// if we have refreshToken in env, pass it as a cookie header",
+                  "const rt = pm.environment.get('refreshToken');",
+                  "if (rt) pm.request.headers.upsert({ key: 'Cookie', value: 'RefreshToken=' + rt });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) pm.environment.set('adminAccessToken', json.data.accessToken);",
+                  "} catch (e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "refresh"
+              ]
+            },
+            "description": "For: Admin. Use refresh token (cookie or body) to obtain new access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "logout"
+              ]
+            },
+            "description": "For: Admin. Logout and revoke refresh token."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Admin\",\n  \"mobile\": \"+911234000000\",\n  \"email\": \"new@cue.com\",\n  \"password\": \"Password123\",\n  \"designation\": \"Manager\",\n  \"permissions\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/add",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "add"
+              ]
+            },
+            "description": "For: Admin (superAdmin or permitted). Create a new admin."
+          },
+          "response": []
+        },
+        {
+          "name": "List Admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "list"
+              ]
+            },
+            "description": "For: Admin. List admins (query: page, limit)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Admin by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/get/{{adminId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "get",
+                "{{adminId}}"
+              ]
+            },
+            "description": "For: Admin. Get admin details by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Admin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"mobile\": \"+911234567891\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/update/{{adminId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "update",
+                "{{adminId}}"
+              ]
+            },
+            "description": "For: Admin. Update admin by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/delete/{{adminId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "delete",
+                "{{adminId}}"
+              ]
+            },
+            "description": "For: Admin. Delete admin by id."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Coach",
+      "item": [
+        {
+          "name": "Signup (Coach)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200,201]);",
+                  "});",
+                  "try { const json = pm.response.json(); if (json.data && json.data.legacyToken) pm.environment.set('legacyToken', json.data.legacyToken); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Coach One\",\n  \"mobile\": \"+971501234567\",\n  \"password\": \"Password123\",\n  \"agree_terms_conditions\": true,\n  \"agree_privacy_policy\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "signup"
+              ]
+            },
+            "description": "For: Public. Create unverified coach account. Returns encrypted legacyToken."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP (Coach flow)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otpId\": \"{{otpId}}\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "verify-otp"
+              ]
+            },
+            "description": "For: Coach (public). Verify OTP to complete signup/login. Returns accessToken and sets CoachRefreshToken cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+971501234567\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "login"
+              ]
+            },
+            "description": "For: Coach. Login via mobile + password."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Access Token (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "CoachRefreshToken={{coachRefreshToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "refresh-token"
+              ]
+            },
+            "description": "For: Coach. Exchange CoachRefreshToken for new access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout (Coach - revoke current)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              },
+              {
+                "key": "Cookie",
+                "value": "CoachRefreshToken={{coachRefreshToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "logout"
+              ]
+            },
+            "description": "For: Coach. Revoke the current refresh token."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout All Devices (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/logout-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "logout-all"
+              ]
+            },
+            "description": "For: Coach. Clears all refresh tokens for authenticated coach."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Cookie / Token (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              },
+              {
+                "key": "Cookie",
+                "value": "CoachRefreshToken={{coachRefreshToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/check-cookie",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "check-cookie"
+              ]
+            },
+            "description": "For: Coach. Validates access token or exchanges refresh cookie for access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Mobile Availability",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+971501234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/check-mobile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "check-mobile"
+              ]
+            },
+            "description": "For: Public. Check whether mobile number is available for registration."
+          },
+          "response": []
+        },
+        {
+          "name": "Forget Password (Coach)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+971501234567\",\n  \"newPassword\": \"NewPass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/forget-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "forget-password"
+              ]
+            },
+            "description": "For: Coach. Reset password using mobile + newPassword."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coach/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "me"
+              ]
+            },
+            "description": "For: Authenticated Coach. Get own profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile (PUT /me)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Coach New\",\n  \"email\": \"coach@example.com\",\n  \"city\": \"Dubai\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "me"
+              ]
+            },
+            "description": "For: Authenticated Coach. Update your profile fields."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Coach (DELETE /delete/:id)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coach/delete/{{coachId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "delete",
+                "{{coachId}}"
+              ]
+            },
+            "description": "For: Authenticated Coach or Admin with proper permission to delete a coach."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Password (PUT /updatePassword/:id)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"Password123\",\n  \"newPassword\": \"NewPass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/updatePassword/{{coachId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "updatePassword",
+                "{{coachId}}"
+              ]
+            },
+            "description": "For: Authenticated Coach. Change password by providing old + new."
+          },
+          "response": []
+        },
+        {
+          "name": "Profile Setup (PATCH /profile-setup)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{coachId}}\",\n  \"email\": \"coach@example.com\",\n  \"dob\": \"01-15-1990\",\n  \"gender\": \"male\",\n  \"city\": \"Dubai\",\n  \"pincode\": 12345\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/profile-setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "profile-setup"
+              ]
+            },
+            "description": "For: Authenticated Coach. Complete profile details."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Story (PATCH /story)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{coachId}}\",\n  \"story\": \"I help people...\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/story",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "story"
+              ]
+            },
+            "description": "For: Authenticated Coach. Save short story/bio."
+          },
+          "response": []
+        },
+        {
+          "name": "Agreement Terms (PATCH /agreement-terms)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{coachId}}\",\n  \"agreement_terms\": [\n    {\n      \"type\": \"text\",\n      \"content\": \"Clause 1\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/agreement-terms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "agreement-terms"
+              ]
+            },
+            "description": "For: Authenticated Coach. Update agreement terms."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Picture (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "{{coachId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "assetId",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "value": "",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/upload/profile-picture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "upload",
+                "profile-picture"
+              ]
+            },
+            "description": "For: Authenticated Coach. Upload profile picture (form key profilePicture)."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Certificates (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "{{coachId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "assetId",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "value": "",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/upload/certificates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "upload",
+                "certificates"
+              ]
+            },
+            "description": "For: Authenticated Coach. Upload certificates (provide id and index fields matching files)."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Work Assets (multipart PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "{{coachId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "assetId",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "value": "",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/upload/work-assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "upload",
+                "work-assets"
+              ]
+            },
+            "description": "For: Authenticated Coach. Upload images/videos as work assets (max 3)."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Agreement (POST /save-agreement)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Service Agreement\",\n  \"content\": [\n    {\n      \"type\": \"text\",\n      \"content\": \"Terms...\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/save-agreement",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "save-agreement"
+              ]
+            },
+            "description": "For: Authenticated Coach. Save agreement content."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Pricing Slots (POST /save-pricing-slots)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"cat123\",\n  \"sessionKey\": \"standard\",\n  \"level\": \"beginner\",\n  \"payload\": {\n    \"price\": 50,\n    \"currency\": \"USD\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/save-pricing-slots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "save-pricing-slots"
+              ]
+            },
+            "description": "For: Authenticated Coach. Save pricing/session slot payload."
+          },
+          "response": []
+        },
+        {
+          "name": "Like Activity (POST /like-activity)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{someId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/like-activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "like-activity"
+              ]
+            },
+            "description": "For: Authenticated Coach. Like an activity by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Dislike Activity (POST /dislike-activity)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{someId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/dislike-activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "dislike-activity"
+              ]
+            },
+            "description": "For: Authenticated Coach. Remove like for activity."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Coach (POST /save-coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{someId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/save-coach",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "save-coach"
+              ]
+            },
+            "description": "For: Authenticated Coach. Save another coach (favorite) by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Unsave Coach (POST /unsave-coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{someId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/unsave-coach",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "unsave-coach"
+              ]
+            },
+            "description": "For: Authenticated Coach. Remove saved coach."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: List Coaches (GET /admin/list)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coach/admin/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "admin",
+                "list"
+              ]
+            },
+            "description": "For: Admin. List coaches (query page, limit, status, q)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: Get Coach (GET /admin/get/:id)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coach/admin/get/{{coachId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "admin",
+                "get",
+                "{{coachId}}"
+              ]
+            },
+            "description": "For: Admin. Get coach details by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: Change Status (PUT /admin/change-status/:id)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"verified\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/admin/change-status/{{coachId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "admin",
+                "change-status",
+                "{{coachId}}"
+              ]
+            },
+            "description": "For: Admin. Change coach status (unverified|pending|verified)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: Block/Unblock Coach (PUT /admin/is-block/:id)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isBlocked\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/admin/is-block/{{coachId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "admin",
+                "is-block",
+                "{{coachId}}"
+              ]
+            },
+            "description": "For: Admin. Set isBlocked true/false."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Pricing (POST /coach/pricing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accepted_levels\": [\n    \"Beginner\",\n    \"Intermediate\"\n  ],\n  \"private\": [\n    {\n      \"date\": \"2025-10-05\",\n      \"start\": \"10:00\",\n      \"end\": \"11:00\",\n      \"price\": 50\n    }\n  ],\n  \"group\": [\n    {\n      \"date\": \"2025-10-06\",\n      \"start\": \"14:00\",\n      \"end\": \"15:00\",\n      \"price\": 30\n    }\n  ],\n  \"discounts\": {\n    \"private\": [\n      {\n        \"min\": 3,\n        \"max\": 5,\n        \"pct\": 20\n      }\n    ],\n    \"group\": [\n      {\n        \"min\": 3,\n        \"max\": 5,\n        \"pct\": 15\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/pricing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "pricing"
+              ]
+            },
+            "description": "Save or replace coach pricing structure (virtual & in-person)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ensure auth header"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200 or 201', function(){pm.expect(pm.response.code).to.be.oneOf([200,201]);});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Pricing (GET /coach/pricing)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coach/pricing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "pricing"
+              ]
+            },
+            "description": "Get authenticated coach's pricing configuration."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Pricing (PUT /coach/pricing/:id)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": {\n    \"price\": 60\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coach/pricing/{{pricingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "pricing",
+                "{{pricingId}}"
+              ]
+            },
+            "description": "Update specific pricing entry by id."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Pricing (DELETE /coach/pricing/:id)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coach/pricing/{{pricingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "pricing",
+                "{{pricingId}}"
+              ]
+            },
+            "description": "Delete a pricing entry by id."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Activities",
+      "item": [
+        {
+          "name": "Get root activities (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "try { const json = pm.response.json(); pm.test('response is array or object', function () { pm.expect(json).to.be.ok; }); } catch(e) {}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/activities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities"
+              ]
+            },
+            "description": "Public: Returns activities where layer=1 (root). Optional query: ?parent_id=... to list children."
+          },
+          "response": []
+        },
+        {
+          "name": "Get activities by parent id (public, query)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "try { const json = pm.response.json(); if (Array.isArray(json)) pm.environment.set('lastActivitiesCount', json.length); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/activities?parent_id={{activityRootId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities"
+              ],
+              "query": [
+                {
+                  "key": "parent_id",
+                  "value": "{{activityRootId}}"
+                }
+              ]
+            },
+            "description": "Public: Return activities where parent_id={{activityRootId}} (children). You can also call GET /activities/:id"
+          },
+          "response": []
+        },
+        {
+          "name": "Get activities by parent id (public, path param)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "try { const json = pm.response.json(); if (json && json.length) pm.environment.set('lastActivitiesCount', json.length); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/activities/{{activityRootId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities",
+                "{{activityRootId}}"
+              ]
+            },
+            "description": "Public: Same as query-based endpoint; returns children of the given parent id."
+          },
+          "response": []
+        },
+        {
+          "name": "Create activity (root or sub) - ADMIN",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure Authorization header is present if adminAccessToken exists",
+                  "const t = pm.environment.get('adminAccessToken');",
+                  "if (t) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t }); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  // If JSON returns created activity object, try save its id",
+                  "  const data = json.data || json;",
+                  "  if (data && data._id) {",
+                  "    // if it was root (layer 1) save to activityRootId, if layer===2 save to activitySubId",
+                  "    if (data.layer === 1 || !data.parent_id) pm.environment.set('activityRootId', data._id);",
+                  "    else if (data.layer === 2 || data.parent_id) pm.environment.set('activitySubId', data._id);",
+                  "    console.log('Saved activity id(s):', pm.environment.get('activityRootId'), pm.environment.get('activitySubId'));",
+                  "  }",
+                  "} catch (e) { console.log('create activity test error', e); }"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Meditation Basics\"\n}\n\n// To create a sub-activity under a parent use:\n// {\n//   \"title\": \"Breathing Techniques\",\n//   \"parent_id\": \"<parent_activity_id>\"\n// }\n"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/activities/admin/add",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities",
+                "admin",
+                "add"
+              ]
+            },
+            "description": "Admin-only: create root (layer=1) or sub (layer=2) activity in a single endpoint. If request includes parent_id, creates sub-activity and sets parent's contains_subtopic=true."
+          },
+          "response": []
+        },
+        {
+          "name": "Create sub-activity explicit (ADMIN)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.environment.get('adminAccessToken');",
+                  "if (t) { pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t }); }",
+                  "",
+                  "// require activityRootId to be present",
+                  "if (!pm.environment.get('activityRootId')) {",
+                  "  console.warn('Warning: activityRootId not set. Create root activity first or set the variable.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                  "try { const json = pm.response.json(); const d = json.data || json; if (d && d._id) pm.environment.set('activitySubId', d._id); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_id\": \"{{activityRootId}}\",\n  \"title\": \"Breathing Techniques\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/activities/add-subactivity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities",
+                "add-subactivity"
+              ]
+            },
+            "description": "Admin-only: explicitly add subactivity. Required permission: activities:add (map in permission config)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update activity title (ADMIN)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.environment.get('adminAccessToken');",
+                  "if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });",
+                  "if (!pm.environment.get('activityRootId')) console.warn('activityRootId not set.');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "try { const json = pm.response.json(); pm.test('updated item returned', function () { pm.expect(json.data || json).to.be.ok; }); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Activity Title\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/activities/{{activityRootId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities",
+                "{{activityRootId}}"
+              ]
+            },
+            "description": "Admin-only: update activity title by id. Required permission: activities:update."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete activity (ADMIN)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const t = pm.environment.get('adminAccessToken');",
+                  "if (t) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + t });",
+                  "if (!pm.environment.get('activityRootId')) console.warn('activityRootId not set \u2014 nothing to delete');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200 or 204 or 202', function () { pm.expect(pm.response.code).to.be.oneOf([200,202,204]); });",
+                  "try { pm.environment.unset('activityRootId'); pm.environment.unset('activitySubId'); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/activities/{{activityRootId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities",
+                "{{activityRootId}}"
+              ]
+            },
+            "description": "Admin-only: delete activity by id. If deleting parent, ensure cascade deletes children in service."
+          },
+          "response": []
+        },
+        {
+          "name": "Search / list activities (public) with query & pagination",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "try { const json = pm.response.json(); pm.environment.set('lastSearchResultCount', Array.isArray(json) ? json.length : (json.data ? json.data.length : 0)); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/activities/search?q=meditation&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "meditation"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Public: search over title (both root & sub-activities). Query params: q, page, limit."
+          },
+          "response": []
+        },
+        {
+          "name": "Example: Create root activity (sample response)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Mirror of Create activity test to capture ID",
+                  "pm.test('status is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                  "try { const json = pm.response.json(); const data = json.data || json; if (data && data._id) pm.environment.set('activityRootId', data._id); } catch(e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Meditation Basics\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/activities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "activities"
+              ]
+            },
+            "description": "Example request. Sample successful response included in description."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
 }

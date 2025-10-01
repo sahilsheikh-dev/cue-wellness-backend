@@ -36,6 +36,8 @@ router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword)
 router.patch("/profile-setup", verifyCoach(), coachController.coachProfileSetup);
 router.patch("/story", verifyCoach(), coachController.saveStory);
 router.patch("/agreement-terms", verifyCoach(), coachController.coachAgreementTerms);
+router.post("/pricing/save", verifyCoach(), coachController.savePricingSlots);
+router.get("/pricing/:categoryId", verifyCoach(), coachController.getPricingSlots);
 
 // Uploads
 // profile picture: unchanged single field 'profilePicture'

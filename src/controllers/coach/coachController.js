@@ -526,10 +526,35 @@ async function saveAgreement(req, res) {
   }
 }
 
+// Save session slots for a coach and a specific category and sessionKey.
 async function savePricingSlots(req, res) {
   try {
     const coachId = req.coach?._id || req.body.coachId;
+    if (!coachId)
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+
     const { categoryId, sessionKey, level, payload } = req.body;
+
+    if (!categoryId || !sessionKey || !payload) {
+      return res.status(400).json({
+        ok: false,
+        message:
+          "categoryId, sessionKey and payload are required. payload should contain selectedLevels, sessions and discounts.",
+      });
+    }
+
+    // basic structural validation
+    if (
+      typeof payload !== "object" ||
+      (!payload.sessions && !payload.selectedLevels && !payload.discounts)
+    ) {
+      return res.status(400).json({
+        ok: false,
+        message:
+          "Invalid payload shape. Expected payload to contain sessions and/or discounts and selectedLevels.",
+      });
+    }
+
     const updated = await coachService.saveSessionSlots(
       coachId,
       categoryId,
@@ -537,6 +562,9 @@ async function savePricingSlots(req, res) {
       level,
       payload
     );
+    if (!updated)
+      return res.status(404).json({ ok: false, message: "Coach not found" });
+
     return res
       .status(200)
       .json({ ok: true, message: "Pricing slots saved", data: updated });
@@ -550,6 +578,43 @@ async function savePricingSlots(req, res) {
       priority: "high",
     });
     console.error("savePricingSlots error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: "Internal Server Error" });
+  }
+}
+
+/**
+ * Get session slots for coach and categoryId
+ * Returns the category object or null
+ */
+async function getPricingSlots(req, res) {
+  try {
+    const coachId = req.coach?._id;
+    if (!coachId)
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+
+    const categoryId = req.params.categoryId;
+    if (!categoryId)
+      return res
+        .status(400)
+        .json({ ok: false, message: "categoryId required" });
+
+    const category = await coachService.getSessionSlots(coachId, categoryId);
+    if (!category)
+      return res.status(404).json({ ok: false, message: "Not found" });
+
+    return res.status(200).json({ ok: true, data: category });
+  } catch (err) {
+    await logError({
+      name: "getPricingSlots_exception",
+      file: "controllers/coach/coachController.js",
+      description: err && err.message ? err.message : String(err),
+      stack: err && err.stack ? err.stack : undefined,
+      section: "coach",
+      priority: "high",
+    });
+    console.error("getPricingSlots error:", err);
     return res
       .status(500)
       .json({ ok: false, message: "Internal Server Error" });
@@ -1095,6 +1160,7 @@ module.exports = {
   blockUnblockCoach,
   saveAgreement,
   savePricingSlots,
+  getPricingSlots,
   list,
   getById,
   likeActivity,

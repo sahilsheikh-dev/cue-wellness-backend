@@ -1,4 +1,4 @@
-// models/coach/coachModel.js
+// src/models/coach/coachModel.js
 const mongoose = require("mongoose");
 
 const RefreshTokenSchema = new mongoose.Schema({
@@ -11,7 +11,7 @@ const RefreshTokenSchema = new mongoose.Schema({
 
 const CertificateSchema = new mongoose.Schema(
   {
-    path: { type: String, required: true }, // stored as relative path or full public url
+    path: { type: String, required: true },
   },
   { timestamps: true }
 );
@@ -20,6 +20,15 @@ const WorkAssetSchema = new mongoose.Schema(
   {
     type: { type: String, enum: ["image", "video"], required: true },
     path: { type: String, required: true },
+  },
+  { timestamps: true }
+);
+
+const CategorySchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true }, // referential id from frontend/category list
+    levelOfExpertise: [{ type: String }],
+    session: { type: mongoose.Schema.Types.Mixed }, // store flexible payload
   },
   { timestamps: true }
 );
@@ -38,15 +47,13 @@ const CoachSchema = new mongoose.Schema(
     address: { type: String },
     pincode: { type: Number },
 
-    profilePicture: { type: String }, // stored as relative path (not full URL)
+    profilePicture: { type: String },
     certificates: [CertificateSchema],
     workAssets: [WorkAssetSchema],
 
-    // legacy random token (kept for compatibility)
     token: { type: String, index: true },
 
-    // JWT / refresh-token based fields
-    refreshTokens: [RefreshTokenSchema], // holds hashed refresh tokens
+    refreshTokens: [RefreshTokenSchema],
 
     status: {
       type: String,
@@ -78,11 +85,13 @@ const CoachSchema = new mongoose.Schema(
     agree_certification: { type: Boolean, default: false },
     agree_experience: { type: Boolean, default: false },
     agree_refund: { type: Boolean, default: false },
+
+    // --- NEW: category pricing storage ---
+    category: [CategorySchema],
   },
   { timestamps: true }
 );
 
-// Compound indexes for common queries
 CoachSchema.index({ mobile: 1 });
 CoachSchema.index({ token: 1 });
 CoachSchema.index({ status: 1 });

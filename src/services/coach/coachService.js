@@ -523,20 +523,56 @@ async function saveAgreement(id, title, contentArr) {
   return updated ? formatCoach(updated) : null;
 }
 
+// Save session slots for a coach and a specific category and sessionKey.
 async function saveSessionSlots(id, categoryId, sessionKey, level, payload) {
   const coach = await Coach.findById(id);
   if (!coach) return null;
+
   coach.category = coach.category || [];
-  const catIndex = coach.category.findIndex((c) => c.id === categoryId);
-  if (catIndex === -1) throw new Error("Category not found");
+
+  // find category by id (string comparison). if not found create one
+  let catIndex = coach.category.findIndex(
+    (c) => String(c.id) === String(categoryId)
+  );
+
+  if (catIndex === -1) {
+    // create new category entry
+    coach.category.push({
+      id: categoryId,
+      levelOfExpertise: [],
+      session: {},
+    });
+    catIndex = coach.category.length - 1;
+  }
+
+  // ensure levelOfExpertise array exists and add 'level' if provided
   coach.category[catIndex].levelOfExpertise =
     coach.category[catIndex].levelOfExpertise || [];
-  if (!coach.category[catIndex].levelOfExpertise.includes(level))
+
+  if (level && !coach.category[catIndex].levelOfExpertise.includes(level)) {
     coach.category[catIndex].levelOfExpertise.push(level);
+  }
+
+  // store payload under sessionKey - overwrite intentionally (frontend sends full payload)
   coach.category[catIndex].session = coach.category[catIndex].session || {};
   coach.category[catIndex].session[sessionKey] = payload;
+
   await coach.save();
   return formatCoach(coach);
+}
+
+/**
+ * Get session slots for coach and categoryId
+ * Returns the category object or null
+ */
+async function getSessionSlots(coachId, categoryId) {
+  const coach = await Coach.findById(coachId);
+  if (!coach) return null;
+  const cat = (coach.category || []).find(
+    (c) => String(c.id) === String(categoryId)
+  );
+  if (!cat) return null;
+  return cat;
 }
 
 async function toggleLikeActivity(coachId, activityId, action = "add") {
@@ -1035,4 +1071,6 @@ module.exports = {
   forgetPasswordService,
   uploadCertificateSingle,
   uploadWorkAssetSingle,
+  saveSessionSlots,
+  getSessionSlots,
 };
