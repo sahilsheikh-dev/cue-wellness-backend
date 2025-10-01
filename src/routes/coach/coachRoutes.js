@@ -41,7 +41,7 @@ router.get("/pricing/:categoryId", verifyCoach(), coachController.getPricingSlot
 
 // Uploads
 // profile picture: unchanged single field 'profilePicture'
-router.post("/upload/profile-picture", verifyCoach(), profilePicUpload.single("profilePicture"), coachController.uploadProfilePicture);
+router.post("/upload/profile-picture", verifyCoach(), profilePicUpload.single("file"), coachController.uploadProfilePicture);
 
 // certificates: single file per request. form-data fields: file, certificateId (optional), coachId (optional) - if coachId omitted, use req.coach._id
 router.post("/upload/certificates", verifyCoach(), certificateUpload.single("file"), coachController.uploadCertificates);

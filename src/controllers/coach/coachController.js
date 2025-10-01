@@ -465,12 +465,12 @@ async function blockUnblockCoach(req, res) {
  */
 async function uploadCertificates(req, res) {
   try {
-    const coachId = req.coach?._id;
+    const coachId = req.body.coachId;
     if (!coachId)
-      return res.status(401).json({ ok: false, message: "Unauthorized" });
+      return res.status(401).json({message: "Coach id required", error:"Unauthorized" });
 
     // Allow certificateId to be passed either as form field 'certificateId' or body
-    const certificateId = req.body.certificateId || req.body.id || null;
+    const certificateId = req.body.certificateId || null;
     const file = req.file || null; // single file upload 'file'
     const result = await coachService.uploadCertificateSingle(
       coachId,
@@ -479,7 +479,6 @@ async function uploadCertificates(req, res) {
     );
 
     return res.status(200).json({
-      ok: true,
       message: result.message,
       data: result.data,
     });
@@ -781,25 +780,30 @@ const unsaveCoach = async (req, res) => {
  */
 async function uploadProfilePicture(req, res) {
   try {
-    const coachId = req.coach?._id;
+    const coachId = req.body.coachId;
     if (!coachId)
-      return res.status(401).json({ ok: false, message: "Unauthorized" });
+      return res.status(401).json({ message: "Coach Id required", error:"Unauthorized" });
 
     const file = req.file || null;
-    if (!file) {
-      return res.status(400).json({ ok: false, message: "file required" });
+    let updated;
+    if (file) {
+      // ✅ If file is uploaded → update profile picture
+      updated = await coachService.setProfilePicture(
+        coachId,
+        file.path || file.filename
+      );
+    } else {
+      // ✅ If file is NOT uploaded → delete profile picture
+      updated = await coachService.deleteProfilePicture(coachId);
     }
 
-    const updated = await coachService.setProfilePicture(
-      coachId,
-      file.path || file.filename
-    );
     if (!updated)
-      return res.status(404).json({ ok: false, message: "Coach not found" });
+      return res.status(404).json({ message: "Coach not found", error:"Not found"});
 
     return res.status(200).json({
-      ok: true,
-      message: "Profile picture uploaded",
+      message: file
+        ? "Profile picture uploaded"
+        : "Profile picture deleted",
       data: updated.profilePicture,
     });
   } catch (err) {
@@ -817,6 +821,7 @@ async function uploadProfilePicture(req, res) {
   }
 }
 
+
 /**
  * Upload / update / delete a work asset
  * - form-data: file (single, optional), assetId (optional)
@@ -826,11 +831,11 @@ async function uploadProfilePicture(req, res) {
  */
 async function uploadWorkAssets(req, res) {
   try {
-    const coachId = req.coach?._id;
+    const coachId = req.body.coachId;
     if (!coachId)
-      return res.status(401).json({ ok: false, message: "Unauthorized" });
+      return res.status(401).json({message: "Coach id required", error:"Unauthorized" });
 
-    const assetId = req.body.assetId || req.body.id || null;
+    const assetId = req.body.assetId || null;
     const file = req.file || null;
     const result = await coachService.uploadWorkAssetSingle(
       coachId,
@@ -839,7 +844,6 @@ async function uploadWorkAssets(req, res) {
     );
 
     return res.status(200).json({
-      ok: true,
       message: result.message,
       data: result.data,
     });

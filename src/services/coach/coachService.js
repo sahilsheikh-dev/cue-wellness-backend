@@ -63,23 +63,25 @@ async function uploadCertificateSingle(coachId, certificateId, file) {
     if (!existing) throw new Error("Certificate not found");
     const oldPath = existing.path || "";
     // remove subdoc
-    existing.remove();
+    existing.deleteOne();
 
     // delete file from disk if it exists in uploads folder
+  if (oldPath) {
     try {
-      const filename = oldPath.split("/").pop();
-      const filePath = path.join(
-        UPLOADS_BASE_PATH,
-        CERTIFICATES_PATH,
-        filename
-      );
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      const filename = path.basename(oldPath); // safer than split
+      const filePath = path.join(UPLOADS_BASE_PATH, CERTIFICATES_PATH, filename);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`Deleted certificate file: ${filePath}`);
+      }
     } catch (err) {
       console.warn(
-        "Failed to delete certificate file:",
-        err && err.message ? err.message : err
+        "Failed to delete certificate file from disk:",
+        err.message || err
       );
     }
+  }
 
     await coach.save();
     return {
@@ -143,27 +145,36 @@ async function uploadWorkAssetSingle(coachId, assetId, file) {
   const coach = await Coach.findById(coachId);
   if (!coach) throw new Error("Coach not found");
 
-  // Delete operation
   if (assetId && !file) {
     const existing = coach.workAssets.id(assetId);
-    if (!existing) throw new Error("Work asset not found");
-
+    if (!existing) throw new Error("work asset not found");
     const oldPath = existing.path || "";
-    existing.remove();
+    // remove subdoc
+    existing.deleteOne();
 
+    // delete file from disk if it exists in uploads folder
+  if (oldPath) {
     try {
-      const filename = oldPath.split("/").pop();
+      const filename = path.basename(oldPath); // safer than split
       const filePath = path.join(UPLOADS_BASE_PATH, WORK_ASSETS_PATH, filename);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`Deleted work asset file: ${filePath}`);
+      }
     } catch (err) {
       console.warn(
-        "Failed to delete work asset file:",
-        err && err.message ? err.message : err
+        "Failed to delete work asset file from disk:",
+        err.message || err
       );
     }
+  }
 
     await coach.save();
-    return { message: "Work asset deleted", data: { deletedId: assetId } };
+    return {
+      message: "work asset deleted",
+      data: { deletedId: assetId },
+    };
   }
 
   // Update operation
@@ -625,6 +636,32 @@ async function setProfilePicture(id, fullFilePath) {
   return formatCoach(coach);
 }
 
+async function deleteProfilePicture(id) {
+  const coach = await Coach.findById(id);
+  if (!coach) return null;
+
+  if (coach.profilePicture) {
+    const oldFilename = coach.profilePicture.split("/").pop();
+    const oldFilePath = path.join(
+      UPLOADS_BASE_PATH,
+      PROFILE_PIC_PATH,
+      oldFilename
+    );
+    try {
+      if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+    } catch (err) {
+      logWarn("Old profile picture not deleted:", oldFilePath, err);
+    }
+  }
+
+  // ✅ Clear profile picture from DB
+  coach.profilePicture = null;
+  await coach.save();
+
+  return formatCoach(coach);
+}
+
+
 async function setWorkAssets(coachId, indexes, files) {
   const coach = await Coach.findById(coachId);
   if (!coach) return null;
@@ -1059,6 +1096,7 @@ module.exports = {
   toggleLikeActivity,
   toggleSaveCoach,
   setProfilePicture,
+  deleteProfilePicture,
   setWorkAssets,
   coachProfileSetupService,
   saveStoryService,
