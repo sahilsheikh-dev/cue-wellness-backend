@@ -21,7 +21,6 @@ const decrypt = (text) => {
   try {
     return cryptr.decrypt(String(text));
   } catch (err) {
-    // don't log the token; log minimal info
     console.warn("❌ Decrypt failed (possibly invalid token)");
     return null;
   }

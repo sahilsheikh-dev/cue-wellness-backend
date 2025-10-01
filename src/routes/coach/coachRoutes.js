@@ -2,36 +2,45 @@ const express = require("express");
 const router = express.Router();
 const coachController = require("../../controllers/coach/coachController");
 const verifyCoach = require("../../middlewares/coach/verifyCoach");
-const verifyAdmin = require("../../middlewares/admin/adminMiddleWare");
+const verifyAdmin = require("../../middlewares/admin/auth.middleware");
 const permissions = require("../../configs/permissionConfig");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 const { profilePicUpload, certificateUpload, workAssetUpload } = require("../../configs/uploadConfig");
 
-// Public routes
+// Public
 router.post("/signup", coachController.signup);
 router.post("/verify-otp", coachController.verifyOtp);
 router.post("/login", coachController.login);
-router.post("/logout", coachController.logout);
+router.post("/refresh-token", coachController.refreshToken); // <-- new route: exchange refresh token for access token
+router.post("/logout", verifyCoach(), coachController.logout); // logout while authorized (revokes current refresh token)
+router.post("/logout-all", verifyCoach(), async (req, res) => {
+  // optional admin/coach endpoint to clear all sessions - implement via service if needed
+  try {
+    const coachId = req.coach._id;
+    await require("../../services/coach/coachService").clearAllRefreshTokens(coachId);
+    res.clearCookie("CoachRefreshToken");
+    return res.status(200).json({ ok: true, message: "Logged out from all devices" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, message: "Internal Server Error" });
+  }
+});
 router.post("/check-cookie", coachController.checkCookie);
 router.post("/check-mobile", coachController.checkMobileAvailability);
 router.put("/forget-password", coachController.forgetPassword);
 
 // Authenticated coach routes
-router.get("/getMyInfo", verifyCoach(), coachController.getPersonalInfo);
-router.put("/updateMyProfile", verifyCoach(), coachController.updateProfile);
-router.delete("/deleteCoach/:id", verifyCoach(), coachController.deleteCoach);
+router.get("/me", verifyCoach(), coachController.getPersonalInfo);
+router.put("/me", verifyCoach(), coachController.updateProfile);
+router.delete("/delete/:id", verifyCoach(), coachController.deleteCoach);
 router.put("/updatePassword/:id", verifyCoach(), coachController.updatePassword);
-router.patch("/coachProfileSetup",verifyCoach(), coachController.coachProfileSetup);
-router.patch("/saveStory", verifyCoach(), coachController.saveStory);
-router.patch("/coachAgreementTerms", verifyCoach(), coachController.coachAgreementTerms);
+router.patch("/profile-setup", verifyCoach(), coachController.coachProfileSetup);
+router.patch("/story", verifyCoach(), coachController.saveStory);
+router.patch("/agreement-terms", verifyCoach(), coachController.coachAgreementTerms);
 
 // Uploads
-router.post("/upload-profile-picture", verifyCoach(), profilePicUpload.single("profilePicture"), coachController.uploadProfilePicture);
-router.post("/upload-certificates", verifyCoach(), certificateUpload.array("certificates", 10), coachController.uploadCertificates);
-router.patch("/upload-work-asset", verifyCoach(), workAssetUpload.array("workAsset", 3), coachController.uploadWorkAssets);
-
+router.post("/upload/profile-picture", verifyCoach(), profilePicUpload.single("profilePicture"), coachController.uploadProfilePicture);
+router.post("/upload/certificates", verifyCoach(), certificateUpload.array("certificates", 10), coachController.uploadCertificates);
+router.patch("/upload/work-assets", verifyCoach(), workAssetUpload.array("workAsset", 3), coachController.uploadWorkAssets);
 
 // Agreement & sessions
 router.post("/save-agreement", verifyCoach(), coachController.saveAgreement);

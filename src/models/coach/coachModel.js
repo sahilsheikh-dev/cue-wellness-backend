@@ -1,11 +1,19 @@
 const mongoose = require("mongoose");
 
+const RefreshTokenSchema = new mongoose.Schema({
+  tokenHash: { type: String, required: true },
+  expiresAt: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now },
+  userAgent: { type: String },
+  ip: { type: String },
+});
+
 const CoachSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+    name: { type: String, required: true, index: true },
     email: { type: String, index: true, sparse: true },
     nick_name: { type: String },
-    mobile: { type: String, unique: true },
+    mobile: { type: String, unique: true, required: true, index: true },
     password: { type: String, required: true },
     dob: { type: Date },
     country: { type: String },
@@ -14,7 +22,7 @@ const CoachSchema = new mongoose.Schema(
     address: { type: String },
     pincode: { type: Number },
 
-    profilePicture: { type: String }, // relative path or URL
+    profilePicture: { type: String }, // stored as relative path (not full URL)
     certificates: [
       {
         index: { type: Number },
@@ -29,7 +37,12 @@ const CoachSchema = new mongoose.Schema(
       },
     ],
 
-    token: { type: String },
+    // legacy random token (kept for compatibility)
+    token: { type: String, index: true },
+
+    // JWT / refresh-token based fields
+    refreshTokens: [RefreshTokenSchema], // holds hashed refresh tokens
+
     status: {
       type: String,
       enum: ["unverified", "pending", "verified", "deleted", "blocked"],
@@ -38,47 +51,16 @@ const CoachSchema = new mongoose.Schema(
     isBlocked: { type: Boolean, default: false },
     mobileVerified: { type: Boolean, default: false },
 
-    // these are experties of coach
     my_activities: [String],
     accepted_genders: [String],
     accepted_languages: [String],
 
-    // professional info
     experience_since_date: { type: Date },
     cue_share_percentage: { type: Number },
     coach_share_percentage: { type: Number },
     story: { type: String },
 
-    // awareness, journal, etc
-    awareness: [
-      {
-        id: String,
-        position: String,
-        marks: [{ id: String, value: Number }],
-      },
-    ],
-    journal: [
-      {
-        id: String,
-        type: String,
-        title: String,
-        content: [{ type: String, content: String, id: String }],
-        cue: [{ title: String, content: [{ content: String }] }],
-        date_of_last_edit: Date,
-        date_of_creation: Date,
-      },
-    ],
-
-    agreement_terms: {
-      type: String,
-    },
-
-    reflection_subscription: {
-      mode: String,
-      start: Date,
-      end: Date,
-      checked_on: Date,
-    },
+    agreement_terms: { type: mongoose.Schema.Types.Mixed },
 
     saved_coaches: [String],
     liked_activities: [String],
@@ -101,5 +83,10 @@ const CoachSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Compound indexes for common queries
+CoachSchema.index({ mobile: 1 });
+CoachSchema.index({ token: 1 });
+CoachSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Coach", CoachSchema);

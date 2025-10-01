@@ -1,15 +1,5 @@
 const ErrorModel = require("../models/errorModel");
 
-/**
- * logError - writes an error document to DB, safely.
- * @param {Object} opts
- *  - name: short name (e.g. 'send otp')
- *  - file: source file path
- *  - description: string or error.message
- *  - stack: error.stack (optional)
- *  - section: logical area (e.g. 'otp')
- *  - priority: 'low' | 'medium' | 'high' (default 'medium')
- */
 async function logError({
   name = "error",
   file = "unknown",
@@ -30,9 +20,8 @@ async function logError({
     });
     await doc.save();
   } catch (err) {
-    // If logging fails, avoid throwing; output minimal server console message
-    // Do NOT include sensitive values.
-    console.error(
+    // Keep noise minimal in production; only console.warn so app continues
+    console.warn(
       "Failed to write error log:",
       err && err.message ? err.message : err
     );
