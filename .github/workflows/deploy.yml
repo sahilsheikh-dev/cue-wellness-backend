@@ -119,6 +119,9 @@ jobs:
             export JWT_SECRET=${{ secrets.JWT_SECRET }}
             export BCRYPT_SALT_ROUNDS="${{ vars.BCRYPT_SALT_ROUNDS }}"
             export ACCESS_TOKEN_EXPIRES_IN="${{ vars.ACCESS_TOKEN_EXPIRES_IN }}"
+            export REFRESH_TOKEN_EXPIRES_DAYS="${{ vars.REFRESH_TOKEN_EXPIRES_DAYS }}"
+            export COOKIE_SECURE="${{ vars.COOKIE_SECURE }}"
+            export COOKIE_SAMESITE="${{ vars.COOKIE_SAMESITE }}"
             export AUTH_RATE_LIMIT="${{ vars.AUTH_RATE_LIMIT }}"
             export LOG_LEVEL="${{ vars.LOG_LEVEL }}"
 
