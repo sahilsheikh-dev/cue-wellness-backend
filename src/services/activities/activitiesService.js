@@ -1,180 +1,120 @@
-// src/services/activities/activitiesService.js
+// services/activities/activitiesService.js
 const Activity = require("../../models/activities/activitiesModel");
-const mongoose = require("mongoose");
 
 /**
- * Create a root activity (layer 1).
- * Prevent duplicate root title (case-insensitive).
+ * Add root activity
  */
-async function createRootActivity(title) {
-  if (!title) throw new Error("Title is required");
-
-  const existing = await Activity.findOne({
+async function addActivityService(title) {
+  if (!title) throw new Error("title required");
+  const exists = await Activity.findOne({
+    title: { $regex: new RegExp(`^${title}$`, "i") },
     layer: 1,
-    title: { $regex: new RegExp(`^${escapeRegex(title)}$`, "i") },
   });
-
-  if (existing) throw new Error("Activity already exists");
-
-  const activity = new Activity({
-    title: title.trim(),
-    layer: 1,
-    parent_id: null,
-    contains_subactivities: false,
-  });
-
-  await activity.save();
-  return activity;
+  if (exists) throw new Error("Activity already exists");
+  const a = new Activity({ title, layer: 1, contains_subtopic: false });
+  await a.save();
+  return a;
 }
 
 /**
- * Create a sub-activity under parentId.
- * Prevent duplicate sibling title (case-insensitive).
- * Also set parent's contains_subactivities = true.
+ * Add sub activity under parentId
  */
-async function createSubActivity(parentId, title) {
-  if (!parentId) throw new Error("parent_id is required");
-  if (!title) throw new Error("Title is required");
-
-  if (!mongoose.Types.ObjectId.isValid(parentId))
-    throw new Error("Invalid parent_id");
-
+async function addSubActivity(parentId, title) {
   const parent = await Activity.findById(parentId);
   if (!parent) throw new Error("Parent activity not found");
-  if (parent.layer !== 1)
-    throw new Error(
-      "Sub-activities must be created under a root (layer 1) activity"
-    );
 
-  // prevent duplicate title under same parent
   const exists = await Activity.findOne({
-    parent_id: parent._id,
+    title: { $regex: new RegExp(`^${title}$`, "i") },
+    parent_id: parentId,
     layer: 2,
-    title: { $regex: new RegExp(`^${escapeRegex(title)}$`, "i") },
   });
-
   if (exists)
-    throw new Error("Sub-activity already exists under the same parent");
+    throw new Error("This sub-activity already exists under the same parent");
 
   const subActivity = new Activity({
-    title: title.trim(),
     layer: 2,
-    parent_id: parent._id,
-    contains_subactivities: false,
+    title,
+    parent_id: parentId,
+    contains_subtopic: false,
   });
 
-  // save sub-activity then set parent flag (in parallel-safe way)
-  await subActivity.save();
-
-  if (!parent.contains_subactivities) {
-    parent.contains_subactivities = true;
+  // mark parent contains_subtopic
+  if (!parent.contains_subtopic) {
+    parent.contains_subtopic = true;
     await parent.save();
   }
 
+  await subActivity.save();
   return subActivity;
 }
 
 /**
- * List root activities (layer 1)
+ * Add either root or sub depending on parent_id param
  */
-async function listRootActivities({ q, page = 1, limit = 100 } = {}) {
-  const filter = { layer: 1 };
-  if (q) filter.title = { $regex: q, $options: "i" };
-  const skip = (Number(page) - 1) * Number(limit);
-  const docs = await Activity.find(filter)
-    .skip(skip)
-    .limit(Number(limit))
-    .sort({ title: 1 })
-    .lean();
-  return docs;
+async function addActivityOrSubActivity(title, parent_id) {
+  if (parent_id) return addSubActivity(parent_id, title);
+  return addActivityService(title);
 }
 
 /**
- * List children of a parent
+ * List root activities
  */
-async function listSubActivities(parentId) {
-  if (!mongoose.Types.ObjectId.isValid(parentId))
-    throw new Error("Invalid parent id");
-  const docs = await Activity.find({ parent_id: parentId, layer: 2 })
-    .sort({ title: 1 })
-    .lean();
-  return docs;
+async function listRootActivities() {
+  return Activity.find({ layer: 1 }).sort({ title: 1 }).lean();
 }
 
 /**
- * Update activity title by id.
- * Prevent duplicates (same layer + same parent)
+ * List children for a parent
+ */
+async function listChildren(parentId) {
+  return Activity.find({ parent_id: parentId }).sort({ title: 1 }).lean();
+}
+
+/**
+ * Update activity title by id
  */
 async function updateActivity(id, title) {
-  if (!id) throw new Error("id required");
-  if (!title) throw new Error("title required");
-  if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid id");
-
-  const doc = await Activity.findById(id);
-  if (!doc) throw new Error("Activity not found");
-
-  // check duplicates in same scope
-  const scope = {
-    layer: doc.layer,
-    title: { $regex: new RegExp(`^${escapeRegex(title)}$`, "i") },
-  };
-  if (doc.layer === 2) scope.parent_id = doc.parent_id;
-  else scope.parent_id = null;
-
-  const existing = await Activity.findOne({ ...scope, _id: { $ne: doc._id } });
-  if (existing) throw new Error("Another activity with same title exists");
-
-  doc.title = title.trim();
-  await doc.save();
-  return doc;
+  const updated = await Activity.findByIdAndUpdate(
+    id,
+    { $set: { title } },
+    { new: true }
+  );
+  return updated;
 }
 
 /**
- * Delete activity by id.
- * If root -> delete children as well.
- * If child -> remove child and update parent.contains_subactivities if needed.
+ * Delete activity and cascade delete children (if root)
  */
 async function deleteActivity(id) {
-  if (!id) throw new Error("id required");
-  if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid id");
-
   const doc = await Activity.findById(id);
-  if (!doc) throw new Error("Activity not found");
+  if (!doc) return null;
 
   if (doc.layer === 1) {
-    // delete root and its children (layer 2)
-    await Activity.deleteMany({
-      $or: [{ _id: doc._id }, { parent_id: doc._id }],
-    });
-    return { deletedRootId: doc._id, deletedChildren: true };
-  } else {
-    // layer 2 - delete child
-    await Activity.findByIdAndDelete(doc._id);
+    // delete children
+    await Activity.deleteMany({ parent_id: doc._id });
+  }
+  await Activity.findByIdAndDelete(id);
 
-    // check if parent still has any children
-    const siblingsCount = await Activity.countDocuments({
+  // if the parent had siblings and now zero children remain, update parent contains_subtopic false
+  if (doc.parent_id) {
+    const siblings = await Activity.countDocuments({
       parent_id: doc.parent_id,
     });
-    if (siblingsCount === 0) {
+    if (siblings === 0) {
       await Activity.findByIdAndUpdate(doc.parent_id, {
-        contains_subactivities: false,
+        $set: { contains_subtopic: false },
       });
     }
-
-    return { deletedChildId: doc._id, parentUpdated: siblingsCount === 0 };
   }
-}
-
-/* helpers */
-function escapeRegex(text) {
-  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return true;
 }
 
 module.exports = {
-  createRootActivity,
-  createSubActivity,
+  addActivityService,
+  addSubActivity,
+  addActivityOrSubActivity,
   listRootActivities,
-  listSubActivities,
+  listChildren,
   updateActivity,
   deleteActivity,
 };
