@@ -1,40 +1,27 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../../controllers/admin/adminController");
-const verifyAdmin = require("../../middlewares/admin/adminMiddleWare");
+const protect = require("../../middlewares/admin/auth.middleware");
 const permissions = require("../../configs/permissionConfig");
+const rateLimit = require("express-rate-limit");
 
-// Public routes
-router.post("/login", adminController.login);
-router.post("/check-cookie", adminController.checkCookie);
-router.post("/logout", adminController.logout);
+// rate limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.AUTH_RATE_LIMIT || "10", 10),
+  message: { success: false, message: "Too many requests, try again later" },
+});
 
-// Protected routes (permissions optional)
+// public
+router.post("/login", authLimiter, adminController.login);
+router.post("/refresh", adminController.refreshAccessToken); // uses cookie or body refresh token
+router.post("/logout", authLimiter, adminController.logout); // logout requires valid access token
 
-router.post(
-  "/add",
-  verifyAdmin(permissions["admin:add"]),
-  adminController.addAdmin
-);
-router.get(
-  "/list",
-  verifyAdmin(permissions["admin:list"]),
-  adminController.listAdmins
-);
-router.get(
-  "/get/:id",
-  verifyAdmin(permissions["admin:get"]),
-  adminController.getAdmin
-);
-router.put(
-  "/update/:id",
-  verifyAdmin(permissions["admin:update"]),
-  adminController.updateAdmin
-);
-router.delete(
-  "/delete/:id",
-  verifyAdmin(permissions["admin:delete"]),
-  adminController.deleteAdmin
-);
+// protected - admin management
+router.post("/add", protect(permissions["admin:add"]), adminController.addAdmin);
+router.get("/list", protect(permissions["admin:list"]), adminController.listAdmins);
+router.get("/get/:id", protect(permissions["admin:get"]), adminController.getAdmin);
+router.put("/update/:id", protect(permissions["admin:update"]), adminController.updateAdmin);
+router.delete("/delete/:id", protect(permissions["admin:delete"]), adminController.deleteAdmin);
 
 module.exports = router;

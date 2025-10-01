@@ -9,31 +9,48 @@ const { startServer } = require("./src/server");
 
 function logDeploymentEnvVariables() {
   const keys = [
-    "CRYPTR_SECRET",
-    "EMAIL_PASSWORD",
-    "EMAIL_USERNAME",
-    "REMOTE_DB_PASS",
+    "NODE_ENV",
+    "PORT",
+    "ALLOWED_ORIGINS",
+    "DB_MODE",
+    "MONGO_URI_LOCAL",
     "REMOTE_DB_USER",
-    "SERVER_IP",
-    "SERVER_USER",
+    "REMOTE_DB_PASS",
+    "REMOTE_DB_IP",
+    "REMOTE_DB_NAME",
+    "SERVER_BASE_URL",
+    "AUTH_RATE_LIMIT",
+    "LOG_LEVEL",
+
+    // Security / crypto
+    "CRYPTR_SECRET",
+    "JWT_SECRET",
+    "BCRYPT_SALT_ROUNDS",
+    "ACCESS_TOKEN_EXPIRES_IN",
+
+    // Email
+    "EMAIL_USERNAME",
+    "EMAIL_PASSWORD",
+    "NOTIFY_EMAILS_SUCCESS",
+    "NOTIFY_EMAILS_FAILURE",
+
+    // Twilio
     "TWILIO_ACCOUNT_SID",
     "TWILIO_AUTH_TOKEN",
     "TWILIO_PHONE_NUMBER",
     "TWILIO_VERIFY_SERVICE_SID",
-    "ALLOWED_ORIGINS",
-    "CERTIFICATES_PATH",
-    "DB_MODE",
-    "MONGO_URI_LOCAL",
-    "NOTIFY_EMAILS_FAILURE",
-    "NOTIFY_EMAILS_SUCCESS",
+
+    // OTP
     "OTP_EXPIRE_MINUTES",
     "OTP_MAX_ATTEMPTS",
-    "PORT",
-    "PROFILE_PIC_PATH",
-    "REMOTE_DB_IP",
-    "REMOTE_DB_NAME",
+
+    // File Paths
     "UPLOADS_BASE_PATH",
+    "PROFILE_PIC_PATH",
+    "CERTIFICATES_PATH",
     "WORK_ASSETS_PATH",
+
+    // Deployment metadata
     "DEPLOYMENT_TIMESTAMP",
     "SERVICE_NAME",
     "HOSTNAME",
@@ -42,7 +59,6 @@ function logDeploymentEnvVariables() {
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
     "GITHUB_SERVER_URL",
-    "SERVER_BASE_URL",
   ];
 
   console.log("=== Deployment Environment Variables ===");

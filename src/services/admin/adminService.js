@@ -1,55 +1,61 @@
 const Admin = require("../../models/admin/adminModel");
-const { encrypt, decrypt } = require("../../utils/cryptography.util");
-const getId = require("../../utils/getId.util");
+const { hashPassword, comparePassword } = require("../../utils/password.util");
+const {
+  signAccessToken,
+  generateRefreshTokenPlain,
+  hashRefreshToken,
+} = require("../../utils/jwt.util");
+const logger = require("../../utils/logger");
 
-// Create admin/staff
-async function createAdmin(data) {
+// Create admin
+async function createAdmin(data, createdById = null) {
+  const passwordHash = await hashPassword(data.password);
   const newAdmin = new Admin({
     ...data,
-    password: encrypt(data.password),
-    token: getId(12),
+    password: passwordHash,
+    createdBy: createdById,
+    // token fields left empty; will be set on login
   });
   await newAdmin.save();
   return newAdmin;
 }
 
-// Find by mobile
 async function findAdminByMobile(mobile) {
   return Admin.findOne({ mobile });
 }
 
-// Check if mobile/email exists
 async function checkAdminByMobileOrEmail(mobile, email) {
-  return Admin.findOne({ $or: [{ mobile }, { email }] });
+  const q = { $or: [] };
+  if (mobile) q.$or.push({ mobile });
+  if (email) q.$or.push({ email });
+  if (q.$or.length === 0) return null;
+  return Admin.findOne(q);
 }
 
-// Update admin/staff
-async function updateAdmin(adminId, updateData) {
-  if (updateData.password) {
-    updateData.password = encrypt(updateData.password);
+async function updateAdmin(adminId, updateData, updatedById = null) {
+  const update = { ...updateData };
+  if (update.password) {
+    update.password = await hashPassword(update.password);
   }
-  const updatedAdmin = await Admin.findByIdAndUpdate(adminId, updateData, {
+  if (updatedById) update.updatedBy = updatedById;
+  const updatedAdmin = await Admin.findByIdAndUpdate(adminId, update, {
     new: true,
-  });
+    runValidators: true,
+  }).select("-password -refreshTokenHash");
   return updatedAdmin;
 }
 
-// Delete admin/staff
 async function deleteAdmin(adminId) {
   return Admin.findByIdAndDelete(adminId);
 }
 
-// Update token on login
-async function updateAdminToken(adminId) {
-  const newToken = getId(12);
-  await Admin.findByIdAndUpdate(adminId, { token: newToken });
-  return newToken;
-}
-
-// List admins/staff with optional pagination
 async function listAdmins({ page = 1, limit = 20 } = {}) {
-  const skip = (page - 1) * limit;
-  const admins = await Admin.find().skip(skip).limit(limit);
+  const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+  const admins = await Admin.find()
+    .select("-password -refreshTokenHash")
+    .skip(skip)
+    .limit(parseInt(limit, 10))
+    .lean();
   return admins.map((a) => ({
     id: a._id,
     name: a.name,
@@ -58,64 +64,69 @@ async function listAdmins({ page = 1, limit = 20 } = {}) {
     designation: a.designation,
     permissions: a.permissions,
     superAdmin: a.superAdmin,
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
   }));
 }
 
-// Get admin/staff by ID
 async function getAdminById(id) {
-  const admin = await Admin.findById(id);
+  const admin = await Admin.findById(id).select("-password -refreshTokenHash");
   if (!admin) return null;
+  return admin;
+}
+
+async function login(mobile, password) {
+  const admin = await Admin.findOne({ mobile });
+  if (!admin) return null;
+
+  const ok = await comparePassword(password, admin.password);
+  if (!ok) return null;
+
+  // generate access + refresh tokens
+  const accessToken = signAccessToken({ id: admin._id, mobile: admin.mobile });
+  const refreshPlain = generateRefreshTokenPlain();
+  const refreshHash = hashRefreshToken(refreshPlain);
+
+  // store hashed refresh token and lastLogin
+  admin.refreshTokenHash = refreshHash;
+  admin.lastLoginAt = new Date();
+  await admin.save();
+
   return {
-    id: admin._id,
-    name: admin.name,
-    email: admin.email,
-    mobile: admin.mobile,
-    designation: admin.designation,
-    permissions: admin.permissions,
-    superAdmin: admin.superAdmin,
-    dob: admin.dob,
-    country: admin.country,
-    gender: admin.gender,
-    profilePicture: admin.profilePicture,
+    admin,
+    accessToken,
+    refreshToken: refreshPlain,
   };
 }
 
-// Login
-async function login(mobile, password) {
-  const admin = await Admin.findOne({ mobile });
-  if (!admin || decrypt(admin.password) !== password) return null;
-  const token = getId(12);
-  admin.token = token;
-  await admin.save();
-  return { admin, token };
+async function rotateRefreshToken(adminId, newRefreshPlain) {
+  const newHash = hashRefreshToken(newRefreshPlain);
+  await Admin.findByIdAndUpdate(adminId, { refreshTokenHash: newHash });
 }
 
-// Logout
-async function logout(token) {
-  const admin = await Admin.findOne({ token });
+async function logoutByRefreshToken(refreshPlain) {
+  const hash = hashRefreshToken(refreshPlain);
+  const admin = await Admin.findOne({ refreshTokenHash: hash });
   if (!admin) return null;
-  admin.token = null;
+  admin.refreshTokenHash = null;
   await admin.save();
   return admin;
 }
 
-// Check token
-async function checkToken(token) {
-  const admin = await Admin.findOne({ token });
-  if (!admin) return null;
-  return admin;
+async function findByRefreshTokenHash(hash) {
+  return Admin.findOne({ refreshTokenHash: hash });
 }
 
 module.exports = {
   createAdmin,
-  updateAdmin,
-  deleteAdmin,
-  updateAdminToken,
   findAdminByMobile,
   checkAdminByMobileOrEmail,
+  updateAdmin,
+  deleteAdmin,
   listAdmins,
   getAdminById,
   login,
-  logout,
-  checkToken,
+  rotateRefreshToken,
+  logoutByRefreshToken,
+  findByRefreshTokenHash,
 };

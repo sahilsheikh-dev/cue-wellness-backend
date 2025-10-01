@@ -1,222 +1,247 @@
 const adminService = require("../../services/admin/adminService");
-const { encrypt, decrypt } = require("../../utils/cryptography.util");
-const validateInputs = require("../../utils/validateInputs.util");
-const ErrorLog = require("../../models/errorModel");
+const {
+  signAccessToken,
+  generateRefreshTokenPlain,
+  hashRefreshToken,
+} = require("../../utils/jwt.util");
 
-// Add admin/staff
+const {
+  addAdminSchema,
+  loginSchema,
+  updateAdminSchema,
+} = require("../../validators/admin.validator");
+const logger = require("../../utils/logger");
+
+// Standard response helper
+function send(res, status, payload) {
+  return res
+    .status(status)
+    .json({ success: payload.success !== false, ...payload });
+}
+
+// Add admin (only accessible to superAdmin or permitted)
 async function addAdmin(req, res) {
   try {
-    const {
-      name,
-      mobile,
-      email,
-      password,
-      dob,
-      country,
-      gender,
-      designation,
-      permissions,
-      superAdmin,
-    } = req.body;
+    const { error, value } = addAdminSchema.validate(req.body);
+    if (error)
+      return send(res, 400, { success: false, message: error.message });
 
-    if (!validateInputs(name, mobile, password)) {
-      return res
-        .status(400)
-        .send({ message: "Name, mobile and password required" });
+    // Only superAdmin can create another superAdmin or set permissions
+    if (value.superAdmin && !req.admin?.superAdmin) {
+      return send(res, 403, {
+        success: false,
+        message: "Only superAdmin can create superAdmin",
+      });
     }
 
+    // Create
     const existing = await adminService.checkAdminByMobileOrEmail(
-      mobile,
-      email
+      value.mobile,
+      value.email
     );
-    if (existing) {
-      return res.status(409).send({ message: "Admin/Staff already exists" });
-    }
+    if (existing)
+      return send(res, 409, {
+        success: false,
+        message: "Admin already exists",
+      });
 
-    const newAdmin = await adminService.createAdmin({
-      name,
-      mobile,
-      email,
-      password,
-      dob,
-      country,
-      gender,
-      designation,
-      permissions,
-      superAdmin,
+    const newAdmin = await adminService.createAdmin(
+      value,
+      req.admin?._id || null
+    );
+    const result = {
+      id: newAdmin._id,
+      name: newAdmin.name,
+      mobile: newAdmin.mobile,
+      email: newAdmin.email,
+    };
+    return send(res, 201, {
+      success: true,
+      message: "Admin added",
+      data: result,
     });
-
-    res.status(201).send({
-      message: "Admin/Staff added successfully",
-      data: {
-        id: newAdmin._id,
-        name: newAdmin.name,
-        mobile: newAdmin.mobile,
-        email: newAdmin.email,
-      },
-    });
-  } catch (error) {
-    const log = new ErrorLog({
-      name: "add admin",
-      file: "controllers/adminController.js",
-      description: error,
-      dateTime: new Date(),
-      section: "admin",
-      priority: "high",
-    });
-    await log.save();
-    res.status(500).send({ message: "Error adding admin/staff", error });
+  } catch (err) {
+    logger.error("addAdmin error: %o", err);
+    return send(res, 500, { success: false, message: "Error adding admin" });
   }
 }
 
-// Update admin/staff
 async function updateAdmin(req, res) {
   try {
-    const updatedAdmin = await adminService.updateAdmin(
+    const { error, value } = updateAdminSchema.validate(req.body);
+    if (error)
+      return send(res, 400, { success: false, message: error.message });
+
+    // Prevent modifications to sensitive fields via this endpoint
+    // Only superAdmin can update permissions/superAdmin - enforce at route-level if needed
+    const updated = await adminService.updateAdmin(
       req.params.id,
-      req.body
+      value,
+      req.admin?._id || null
     );
-    if (!updatedAdmin)
-      return res.status(404).send({ message: "Admin/Staff not found" });
-    res
-      .status(200)
-      .send({ message: "Updated successfully", data: updatedAdmin });
-  } catch (error) {
-    const log = new ErrorLog({
-      name: "update admin",
-      file: "controllers/adminController.js",
-      description: error,
-      dateTime: new Date(),
-      section: "admin",
-      priority: "high",
-    });
-    await log.save();
-    res.status(500).send({ message: "Error updating admin/staff", error });
+    if (!updated)
+      return send(res, 404, { success: false, message: "Admin not found" });
+    return send(res, 200, { success: true, message: "Updated", data: updated });
+  } catch (err) {
+    logger.error("updateAdmin error: %o", err);
+    return send(res, 500, { success: false, message: "Error updating admin" });
   }
 }
 
-// Delete admin/staff
 async function deleteAdmin(req, res) {
   try {
-    const deletedAdmin = await adminService.deleteAdmin(req.params.id);
-    if (!deletedAdmin)
-      return res.status(404).send({ message: "Admin/Staff not found" });
-    res.status(200).send({ message: "Deleted successfully" });
-  } catch (error) {
-    const log = new ErrorLog({
-      name: "delete admin",
-      file: "controllers/adminController.js",
-      description: error,
-      dateTime: new Date(),
-      section: "admin",
-      priority: "high",
-    });
-    await log.save();
-    res.status(500).send({ message: "Error deleting admin/staff", error });
+    // prevent self-delete
+    if (
+      req.admin &&
+      req.admin._id &&
+      req.admin._id.toString() === req.params.id
+    ) {
+      return send(res, 400, {
+        success: false,
+        message: "Admins cannot delete themselves",
+      });
+    }
+    const deleted = await adminService.deleteAdmin(req.params.id);
+    if (!deleted)
+      return send(res, 404, { success: false, message: "Admin not found" });
+    return send(res, 200, { success: true, message: "Deleted" });
+  } catch (err) {
+    logger.error("deleteAdmin error: %o", err);
+    return send(res, 500, { success: false, message: "Error deleting admin" });
   }
 }
 
-// List admins/staff
 async function listAdmins(req, res) {
   try {
-    const { page, limit } = req.query;
+    const { page = 1, limit = 20 } = req.query;
     const data = await adminService.listAdmins({ page, limit });
-    res.status(200).send({ message: "Success", data });
-  } catch (error) {
-    res.status(500).send({ message: "Error listing admins/staff", error });
+    return send(res, 200, { success: true, message: "Success", data });
+  } catch (err) {
+    logger.error("listAdmins error: %o", err);
+    return send(res, 500, { success: false, message: "Error listing admins" });
   }
 }
 
-// Get single admin/staff
 async function getAdmin(req, res) {
   try {
     const data = await adminService.getAdminById(req.params.id);
     if (!data)
-      return res.status(404).send({ message: "Admin/Staff not found" });
-    res.status(200).send({ message: "Success", data });
-  } catch (error) {
-    res.status(500).send({ message: "Error fetching admin/staff", error });
+      return send(res, 404, { success: false, message: "Admin not found" });
+    return send(res, 200, { success: true, message: "Success", data });
+  } catch (err) {
+    logger.error("getAdmin error: %o", err);
+    return send(res, 500, { success: false, message: "Error fetching admin" });
   }
 }
 
-// Login
 async function login(req, res) {
   try {
-    const { mobile, password } = req.body;
-    if (!validateInputs(mobile, password))
-      return res.status(400).send({ message: "Fill all details" });
+    const { error, value } = loginSchema.validate(req.body);
+    if (error)
+      return res.status(400).json({ success: false, message: error.message });
 
-    const result = await adminService.login(mobile, password);
+    const result = await adminService.login(value.mobile, value.password);
     if (!result)
-      return res.status(401).send({ message: "Invalid mobile or password" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid mobile or password" });
 
-    const { admin, token } = result;
+    // set secure cookie for refresh token (httpOnly)
+    const refreshTokenPlain = result.refreshToken;
+    const secureCookie = process.env.NODE_ENV === "production";
 
-    res.cookie("AuthToken", encrypt(token), {
+    res.cookie("RefreshToken", refreshTokenPlain, {
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-      secure: true,
-      sameSite: "None",
+      secure: secureCookie,
+      sameSite: secureCookie ? "None" : "Lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
 
-    res.status(200).send({
+    // return access token and minimal admin info
+    return res.status(200).json({
+      success: true,
       message: "Login successful",
       data: {
-        token: encrypt(token),
-        name: admin.name,
-        email: admin.email,
-        mobile: admin.mobile,
-        designation: admin.designation,
-        permissions: admin.permissions,
-        superAdmin: admin.superAdmin,
+        accessToken: result.accessToken,
+        admin: {
+          id: result.admin._id,
+          name: result.admin.name,
+          email: result.admin.email,
+          mobile: result.admin.mobile,
+          designation: result.admin.designation,
+          permissions: result.admin.permissions,
+          superAdmin: result.admin.superAdmin,
+        },
       },
     });
-  } catch (error) {
-    res.status(500).send({ message: "Login failed", error });
+  } catch (err) {
+    logger.error("login error: %o", err);
+    return res.status(500).json({ success: false, message: "Login failed" });
   }
 }
 
-// Logout
 async function logout(req, res) {
   try {
-    const token = req.headers.token || req.cookies.AuthToken;
-    if (!token) return res.status(400).send({ message: "No token provided" });
-
-    const admin = await adminService.logout(decrypt(token));
+    // prefer cookie, fallback to body/header
+    const refreshPlain =
+      req.cookies?.RefreshToken || req.body.refreshToken || null;
+    if (!refreshPlain) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No refresh token provided" });
+    }
+    const admin = await adminService.logoutByRefreshToken(refreshPlain);
     if (!admin)
-      return res.status(404).send({ message: "Admin/Staff not found" });
+      return res.status(404).json({ success: false, message: "Invalid token" });
 
-    res.clearCookie("AuthToken");
-    res.status(200).send({ message: "Logout successful" });
-  } catch (error) {
-    res.status(500).send({ message: "Logout failed", error });
+    // clear cookie
+    res.clearCookie("RefreshToken");
+    return res
+      .status(200)
+      .json({ success: true, message: "Logout successful" });
+  } catch (err) {
+    logger.error("logout error: %o", err);
+    return res.status(500).json({ success: false, message: "Logout failed" });
   }
 }
 
-// Check cookie
-async function checkCookie(req, res) {
+async function refreshAccessToken(req, res) {
   try {
-    const token = req.cookies.AuthToken;
-    if (!token) return res.status(401).send({ message: "No token found" });
+    const refreshPlain = req.cookies?.RefreshToken || req.body.refreshToken;
+    if (!refreshPlain)
+      return res
+        .status(400)
+        .json({ success: false, message: "No refresh token" });
 
-    const admin = await adminService.checkToken(decrypt(token));
+    const refreshHash = hashRefreshToken(refreshPlain);
+    const admin = await adminService.findByRefreshTokenHash(refreshHash);
     if (!admin)
-      return res.status(404).send({ message: "Admin/Staff not found" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid refresh token" });
 
-    res.status(200).send({
-      message: "Token valid",
-      data: {
-        token: encrypt(admin.token),
-        name: admin.name,
-        email: admin.email,
-        mobile: admin.mobile,
-        designation: admin.designation,
-        permissions: admin.permissions,
-        superAdmin: admin.superAdmin,
-      },
+    // issue new access token and rotate refresh token
+    const accessToken = require("../../utils/jwt.util").signAccessToken({
+      id: admin._id,
+      mobile: admin.mobile,
     });
-  } catch (error) {
-    res.status(500).send({ message: "Error checking token", error });
+    const newRefreshPlain =
+      require("../../utils/jwt.util").generateRefreshTokenPlain();
+    await adminService.rotateRefreshToken(admin._id, newRefreshPlain);
+
+    res.cookie("RefreshToken", newRefreshPlain, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({ success: true, data: { accessToken } });
+  } catch (err) {
+    logger.error("refreshAccessToken error: %o", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Could not refresh token" });
   }
 }
 
@@ -228,5 +253,5 @@ module.exports = {
   getAdmin,
   login,
   logout,
-  checkCookie,
+  refreshAccessToken,
 };

@@ -116,6 +116,11 @@ jobs:
             export GITHUB_ACTOR="${{ github.actor }}"
             export GITHUB_REPOSITORY="${{ github.repository }}"
             export GITHUB_SERVER_URL="${{ github.server_url }}"
+            export JWT_SECRET=${{ secrets.JWT_SECRET }}
+            export BCRYPT_SALT_ROUNDS="${{ vars.BCRYPT_SALT_ROUNDS }}"
+            export ACCESS_TOKEN_EXPIRES_IN="${{ vars.ACCESS_TOKEN_EXPIRES_IN }}"
+            export AUTH_RATE_LIMIT="${{ vars.AUTH_RATE_LIMIT }}"
+            export LOG_LEVEL="${{ vars.LOG_LEVEL }}"
 
             if pm2 describe cue-wellness-backend > /dev/null; then
               echo "♻️ Reloading PM2 process"
