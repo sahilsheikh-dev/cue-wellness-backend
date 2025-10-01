@@ -10,6 +10,12 @@ const OtpSchema = new Schema(
       enum: ["client", "coach", "eventOrganizer", "productCompany"],
       index: true,
     },
+    operation: {
+      type: String,
+      required: false,
+      // examples: "login", "register", "reset-password", "transaction"
+      index: true,
+    },
     otpEncrypted: { type: String }, // optional if using provider-only
     otpId: { type: String, required: true, unique: true }, // raw otpId stored; we return encrypted to client
     attempts: { type: Number, default: 0 },
