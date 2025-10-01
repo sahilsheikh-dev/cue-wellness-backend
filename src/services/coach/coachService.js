@@ -272,8 +272,8 @@ async function coachAgreementTermsService(payload) {
     payload.id,
     { $set: { agreement_terms: payload.agreement_terms } },
     { new: true }
-  ).lean();
-  return coach;
+  );
+  return coach ? formatCoach(coach) : null;
 }
 
 async function changeCoachStatus(id, status) {
