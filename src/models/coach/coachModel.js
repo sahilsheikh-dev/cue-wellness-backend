@@ -1,3 +1,4 @@
+// models/coach/coachModel.js
 const mongoose = require("mongoose");
 
 const RefreshTokenSchema = new mongoose.Schema({
@@ -7,6 +8,21 @@ const RefreshTokenSchema = new mongoose.Schema({
   userAgent: { type: String },
   ip: { type: String },
 });
+
+const CertificateSchema = new mongoose.Schema(
+  {
+    path: { type: String, required: true }, // stored as relative path or full public url
+  },
+  { timestamps: true }
+);
+
+const WorkAssetSchema = new mongoose.Schema(
+  {
+    type: { type: String, enum: ["image", "video"], required: true },
+    path: { type: String, required: true },
+  },
+  { timestamps: true }
+);
 
 const CoachSchema = new mongoose.Schema(
   {
@@ -23,19 +39,8 @@ const CoachSchema = new mongoose.Schema(
     pincode: { type: Number },
 
     profilePicture: { type: String }, // stored as relative path (not full URL)
-    certificates: [
-      {
-        index: { type: Number },
-        path: { type: String },
-      },
-    ],
-    workAssets: [
-      {
-        type: { type: String }, // image / video
-        path: { type: String },
-        index: { type: Number },
-      },
-    ],
+    certificates: [CertificateSchema],
+    workAssets: [WorkAssetSchema],
 
     // legacy random token (kept for compatibility)
     token: { type: String, index: true },
@@ -66,13 +71,6 @@ const CoachSchema = new mongoose.Schema(
     liked_activities: [String],
 
     has_read_awareness_guideline: { type: Boolean, default: false },
-    has_read_connection_guideline: { type: Boolean, default: false },
-    has_read_reflection_guideline: { type: Boolean, default: false },
-    has_read_journal_guideline: { type: Boolean, default: false },
-    has_read_client_guideline: { type: Boolean, default: false },
-    has_read_coach_guideline: { type: Boolean, default: false },
-    has_read_event_organizer_guideline: { type: Boolean, default: false },
-    has_read_product_company_guideline: { type: Boolean, default: false },
 
     agree_terms_conditions: { type: Boolean, required: true },
     agree_privacy_policy: { type: Boolean, required: true },

@@ -1,3 +1,4 @@
+// routes/coachRoutes.js
 const express = require("express");
 const router = express.Router();
 const coachController = require("../../controllers/coach/coachController");
@@ -10,10 +11,9 @@ const { profilePicUpload, certificateUpload, workAssetUpload } = require("../../
 router.post("/signup", coachController.signup);
 router.post("/verify-otp", coachController.verifyOtp);
 router.post("/login", coachController.login);
-router.post("/refresh-token", coachController.refreshToken); // <-- new route: exchange refresh token for access token
-router.post("/logout", verifyCoach(), coachController.logout); // logout while authorized (revokes current refresh token)
+router.post("/refresh-token", coachController.refreshToken);
+router.post("/logout", verifyCoach(), coachController.logout);
 router.post("/logout-all", verifyCoach(), async (req, res) => {
-  // optional admin/coach endpoint to clear all sessions - implement via service if needed
   try {
     const coachId = req.coach._id;
     await require("../../services/coach/coachService").clearAllRefreshTokens(coachId);
@@ -38,13 +38,14 @@ router.patch("/story", verifyCoach(), coachController.saveStory);
 router.patch("/agreement-terms", verifyCoach(), coachController.coachAgreementTerms);
 
 // Uploads
+// profile picture: unchanged single field 'profilePicture'
 router.post("/upload/profile-picture", verifyCoach(), profilePicUpload.single("profilePicture"), coachController.uploadProfilePicture);
-router.post("/upload/certificates", verifyCoach(), certificateUpload.array("certificates", 10), coachController.uploadCertificates);
-router.patch("/upload/work-assets", verifyCoach(), workAssetUpload.array("workAsset", 3), coachController.uploadWorkAssets);
 
-// Agreement & sessions
-router.post("/save-agreement", verifyCoach(), coachController.saveAgreement);
-router.post("/save-pricing-slots", verifyCoach(), coachController.savePricingSlots);
+// certificates: single file per request. form-data fields: file, certificateId (optional), coachId (optional) - if coachId omitted, use req.coach._id
+router.post("/upload/certificates", verifyCoach(), certificateUpload.single("file"), coachController.uploadCertificates);
+
+// work assets: single file per request. form-data fields: file, assetId (optional)
+router.patch("/upload/work-assets", verifyCoach(), workAssetUpload.single("file"), coachController.uploadWorkAssets);
 
 // Like / save
 router.post("/like-activity", verifyCoach(), coachController.likeActivity);

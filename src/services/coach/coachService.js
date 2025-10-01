@@ -13,6 +13,8 @@ const {
   refreshTokenExpiryDate,
 } = require("../../utils/jwt.util");
 
+// Ensure these constants match your uploadConfig.js
+
 const {
   UPLOADS_BASE_PATH = path.join(process.cwd(), "uploads"),
   PROFILE_PIC_PATH = "profile_pics",
@@ -32,10 +34,184 @@ function logWarn(prefix, filePath, err) {
   );
 }
 
-function publicUrlFor(relative) {
-  if (!relative) return relative;
-  if (/^https?:\/\//i.test(relative)) return relative;
-  return `${BASE_URL}/uploads/${relative.replace(/^[\/\\]+/, "")}`;
+const { publicUrlFor } = (function () {
+  // helper same as used elsewhere in your file — but ensure you export or reuse your existing publicUrlFor
+  // If you already have a publicUrlFor function in that file, use the existing one. This is a fallback used below.
+  return {
+    publicUrlFor: (relative) => {
+      const BASE_URL =
+        process.env.SERVER_BASE_URL ||
+        `http://localhost:${process.env.PORT || 9000}`;
+      if (!relative) return relative;
+      if (/^https?:\/\//i.test(relative)) return relative;
+      return `${BASE_URL}/uploads/${relative.replace(/^[\/\\]+/, "")}`;
+    },
+  };
+})();
+
+/**
+ * Upload / update / delete single certificate (certificateId may be null)
+ * Returns { message, data } where data is the updated coach or the affected certificate doc
+ */
+async function uploadCertificateSingle(coachId, certificateId, file) {
+  const coach = await Coach.findById(coachId);
+  if (!coach) throw new Error("Coach not found");
+
+  // Delete operation: certificateId provided, file not provided => delete subdoc
+  if (certificateId && !file) {
+    const existing = coach.certificates.id(certificateId);
+    if (!existing) throw new Error("Certificate not found");
+    const oldPath = existing.path || "";
+    // remove subdoc
+    existing.remove();
+
+    // delete file from disk if it exists in uploads folder
+    try {
+      const filename = oldPath.split("/").pop();
+      const filePath = path.join(
+        UPLOADS_BASE_PATH,
+        CERTIFICATES_PATH,
+        filename
+      );
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.warn(
+        "Failed to delete certificate file:",
+        err && err.message ? err.message : err
+      );
+    }
+
+    await coach.save();
+    return {
+      message: "Certificate deleted",
+      data: { deletedId: certificateId },
+    };
+  }
+
+  // Update operation: certificateId + file
+  if (certificateId && file) {
+    const existing = coach.certificates.id(certificateId);
+    if (!existing) throw new Error("Certificate not found");
+    // delete old file
+    try {
+      const oldPath = existing.path || "";
+      const filename = oldPath.split("/").pop();
+      const filePath = path.join(
+        UPLOADS_BASE_PATH,
+        CERTIFICATES_PATH,
+        filename
+      );
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.warn(
+        "Failed to delete old certificate file:",
+        err && err.message ? err.message : err
+      );
+    }
+
+    const relative = `${CERTIFICATES_PATH}/${file.filename}`;
+    existing.path = relative;
+    await coach.save();
+    return {
+      message: "Certificate updated",
+      data: { id: existing._id, path: publicUrlFor(relative) },
+    };
+  }
+
+  // Create operation: no certificateId + file
+  if (!certificateId && file) {
+    const relative = `${CERTIFICATES_PATH}/${file.filename}`;
+    const newSubdoc = coach.certificates.create({ path: relative });
+    coach.certificates.push(newSubdoc);
+    await coach.save();
+    return {
+      message: "Certificate added",
+      data: { id: newSubdoc._id, path: publicUrlFor(relative) },
+    };
+  }
+
+  throw new Error(
+    "Invalid request: either provide file (to create/update) or certificateId without file (to delete)."
+  );
+}
+
+/**
+ * Upload / update / delete single work asset (assetId may be null)
+ * workAssets subdocs have 'type' and 'path'
+ */
+async function uploadWorkAssetSingle(coachId, assetId, file) {
+  const coach = await Coach.findById(coachId);
+  if (!coach) throw new Error("Coach not found");
+
+  // Delete operation
+  if (assetId && !file) {
+    const existing = coach.workAssets.id(assetId);
+    if (!existing) throw new Error("Work asset not found");
+
+    const oldPath = existing.path || "";
+    existing.remove();
+
+    try {
+      const filename = oldPath.split("/").pop();
+      const filePath = path.join(UPLOADS_BASE_PATH, WORK_ASSETS_PATH, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.warn(
+        "Failed to delete work asset file:",
+        err && err.message ? err.message : err
+      );
+    }
+
+    await coach.save();
+    return { message: "Work asset deleted", data: { deletedId: assetId } };
+  }
+
+  // Update operation
+  if (assetId && file) {
+    const existing = coach.workAssets.id(assetId);
+    if (!existing) throw new Error("Work asset not found");
+
+    try {
+      const oldPath = existing.path || "";
+      const filename = oldPath.split("/").pop();
+      const filePath = path.join(UPLOADS_BASE_PATH, WORK_ASSETS_PATH, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.warn(
+        "Failed to delete old work file:",
+        err && err.message ? err.message : err
+      );
+    }
+
+    const type =
+      file.mimetype && file.mimetype.startsWith("image") ? "image" : "video";
+    const relative = `${WORK_ASSETS_PATH}/${file.filename}`;
+    existing.path = relative;
+    existing.type = type;
+    await coach.save();
+    return {
+      message: "Work asset updated",
+      data: { id: existing._id, path: publicUrlFor(relative), type },
+    };
+  }
+
+  // Create operation
+  if (!assetId && file) {
+    const type =
+      file.mimetype && file.mimetype.startsWith("image") ? "image" : "video";
+    const relative = `${WORK_ASSETS_PATH}/${file.filename}`;
+    const newSubdoc = coach.workAssets.create({ path: relative, type });
+    coach.workAssets.push(newSubdoc);
+    await coach.save();
+    return {
+      message: "Work asset added",
+      data: { id: newSubdoc._id, path: publicUrlFor(relative), type },
+    };
+  }
+
+  throw new Error(
+    "Invalid request: either provide file (to create/update) or assetId without file (to delete)."
+  );
 }
 
 /**
@@ -857,4 +1033,6 @@ module.exports = {
   formatCoach,
   isMobileAvailable,
   forgetPasswordService,
+  uploadCertificateSingle,
+  uploadWorkAssetSingle,
 };

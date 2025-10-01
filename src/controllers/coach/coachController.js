@@ -3,6 +3,7 @@ const otpService = require("../../services/otpService");
 const { encrypt, decrypt } = require("../../utils/cryptography.util");
 const validateInputs = require("../../utils/validateInputs.util");
 const { logError } = require("../../utils/errorLogger.util");
+const path = require("path");
 
 const COOKIE_REFRESH_NAME = "CoachRefreshToken";
 const COOKIE_MAX_AGE = 24 * 60 * 60 * 1000 * 30; // ~30 days (cookie expiry mirrors refresh token expiry)
@@ -455,50 +456,38 @@ async function blockUnblockCoach(req, res) {
   }
 }
 
+/**
+ * Upload / update / delete a certificate
+ * - form-data: file (single, optional), certificateId (optional)
+ * - If certificateId + file => update that certificate subdoc (replace file on disk)
+ * - If certificateId + no file => delete certificate subdoc + disk file
+ * - If no certificateId + file => create new certificate subdoc for the coach
+ */
 async function uploadCertificates(req, res) {
   try {
-    const coachId = req.body.id;
+    const coachId = req.coach?._id;
     if (!coachId)
-      return res.status(400).json({ ok: false, message: "coachId required" });
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
 
-    let indexes = req.body.index;
-    if (!indexes)
-      return res.status(400).json({ ok: false, message: "Indexes required" });
-
-    if (!Array.isArray(indexes)) indexes = [indexes];
-    indexes = indexes.map(Number);
-    if (indexes.some(isNaN))
-      return res
-        .status(400)
-        .json({ ok: false, message: "Invalid certificate index provided" });
-
-    const files = req.files || [];
-    const updated = await coachService.addCertificates(coachId, indexes, files);
-    if (!updated)
-      return res.status(404).json({ ok: false, message: "Coach not found" });
-
-    const uploaded = [];
-    const deleted = [];
-    for (let i = 0; i < indexes.length; i++) {
-      const idx = indexes[i];
-      const file = files[i];
-      if (file) uploaded.push({ index: idx, filename: file.filename });
-      else deleted.push({ index: idx });
-    }
+    // Allow certificateId to be passed either as form field 'certificateId' or body
+    const certificateId = req.body.certificateId || req.body.id || null;
+    const file = req.file || null; // single file upload 'file'
+    const result = await coachService.uploadCertificateSingle(
+      coachId,
+      certificateId,
+      file
+    );
 
     return res.status(200).json({
       ok: true,
-      message: "Certificates processed",
-      uploaded,
-      deleted,
-      data: updated,
+      message: result.message,
+      data: result.data,
     });
   } catch (err) {
     await logError({
       name: "uploadCertificates_exception",
       file: "controllers/coach/coachController.js",
       description: err && err.message ? err.message : String(err),
-      stack: err && err.stack ? err.stack : undefined,
       section: "coach",
       priority: "high",
     });
@@ -720,15 +709,25 @@ const unsaveCoach = async (req, res) => {
   }
 };
 
+/**
+ * Upload or update profile picture
+ * - This expects req.file (single) and uses req.coach._id
+ * - If req.file present: replace profile picture (delete old file)
+ */
 async function uploadProfilePicture(req, res) {
   try {
-    if (!req.file)
-      return res.status(400).json({ ok: false, message: "No file uploaded" });
+    const coachId = req.coach?._id;
+    if (!coachId)
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
 
-    const fullFilePath = req.file.path;
+    const file = req.file || null;
+    if (!file) {
+      return res.status(400).json({ ok: false, message: "file required" });
+    }
+
     const updated = await coachService.setProfilePicture(
-      req.coach._id,
-      fullFilePath
+      coachId,
+      file.path || file.filename
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Coach not found" });
@@ -743,7 +742,6 @@ async function uploadProfilePicture(req, res) {
       name: "uploadProfilePicture_exception",
       file: "controllers/coach/coachController.js",
       description: err && err.message ? err.message : String(err),
-      stack: err && err.stack ? err.stack : undefined,
       section: "coach",
       priority: "high",
     });
@@ -754,70 +752,37 @@ async function uploadProfilePicture(req, res) {
   }
 }
 
+/**
+ * Upload / update / delete a work asset
+ * - form-data: file (single, optional), assetId (optional)
+ * - If assetId + file => update existing asset
+ * - If assetId + no file => delete existing asset
+ * - If no assetId + file => create new asset
+ */
 async function uploadWorkAssets(req, res) {
   try {
-    const coachId = req.body.id;
+    const coachId = req.coach?._id;
     if (!coachId)
-      return res.status(400).json({ ok: false, message: "coachId required" });
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
 
-    let indexes = req.body.index;
-    if (!indexes)
-      return res.status(400).json({ ok: false, message: "Indexes required" });
-    if (!Array.isArray(indexes)) indexes = [indexes];
-    indexes = indexes.map(Number);
-    if (indexes.some(isNaN))
-      return res.status(400).json({ ok: false, message: "Invalid index" });
-
-    const files = req.files || [];
-
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/jpg",
-      "video/mp4",
-      "video/mkv",
-      "video/avi",
-      "video/quicktime",
-    ];
-    for (const f of files) {
-      if (!allowedTypes.includes(f.mimetype)) {
-        return res.status(415).json({
-          ok: false,
-          message: "Invalid file type. Only images and videos allowed",
-        });
-      }
-    }
-
-    const updatedCoach = await coachService.setWorkAssets(
+    const assetId = req.body.assetId || req.body.id || null;
+    const file = req.file || null;
+    const result = await coachService.uploadWorkAssetSingle(
       coachId,
-      indexes,
-      files
+      assetId,
+      file
     );
-    if (!updatedCoach)
-      return res.status(404).json({ ok: false, message: "Coach not found" });
-
-    const uploaded = [];
-    const deleted = [];
-    for (let i = 0; i < indexes.length; i++) {
-      const idx = indexes[i];
-      const file = files[i];
-      if (file) uploaded.push({ index: idx, filename: file.filename });
-      else deleted.push({ index: idx });
-    }
 
     return res.status(200).json({
       ok: true,
-      message: "Work assets processed",
-      uploaded,
-      deleted,
-      data: updatedCoach.workAssets,
+      message: result.message,
+      data: result.data,
     });
   } catch (err) {
     await logError({
       name: "uploadWorkAssets_exception",
       file: "controllers/coach/coachController.js",
       description: err && err.message ? err.message : String(err),
-      stack: err && err.stack ? err.stack : undefined,
       section: "coach",
       priority: "high",
     });
@@ -1128,7 +1093,6 @@ module.exports = {
   updateProfile,
   changeStatus,
   blockUnblockCoach,
-  uploadCertificates,
   saveAgreement,
   savePricingSlots,
   list,
@@ -1138,6 +1102,7 @@ module.exports = {
   saveCoach,
   unsaveCoach,
   uploadProfilePicture,
+  uploadCertificates,
   uploadWorkAssets,
   checkCookie,
   deleteCoach,
