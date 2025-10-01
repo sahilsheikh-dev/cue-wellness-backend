@@ -1,4 +1,3 @@
-// controllers/otpController.js
 const otpService = require("../services/otpService");
 
 const ALLOWED_USER_TYPES = [
@@ -50,7 +49,6 @@ async function verifyOtp(req, res) {
 
     const result = await otpService.verifyOtp(otpId, otp);
     if (result.ok) {
-      // return the record id and userType so caller can continue account creation/login
       return res.status(200).json({
         ok: true,
         message: "Verified",
@@ -85,6 +83,7 @@ async function verifyOtp(req, res) {
 /**
  * POST /api/otp/resend
  * body: { otpId: "<encrypted>" }
+ * validateOtpId middleware will attach req.otpRecord (but service accepts encrypted id)
  */
 async function resendOtp(req, res) {
   try {

@@ -1,4 +1,3 @@
-// middlewares/otpMiddleware.js
 const { decrypt } = require("../utils/cryptography.util");
 const OtpRequest = require("../models/otpModel");
 
@@ -14,12 +13,9 @@ async function validateOtpId(req, res, next) {
     if (!otpId)
       return res.status(400).json({ ok: false, message: "otpId required" });
 
-    let rawId;
-    try {
-      rawId = decrypt(otpId);
-    } catch (err) {
+    const rawId = decrypt(otpId);
+    if (!rawId)
       return res.status(400).json({ ok: false, message: "Invalid otpId" });
-    }
 
     const record = await OtpRequest.findOne({ otpId: rawId });
     if (!record)
@@ -27,7 +23,6 @@ async function validateOtpId(req, res, next) {
         .status(404)
         .json({ ok: false, message: "OTP request not found" });
 
-    // optional userType match
     if (userType && record.userType !== userType) {
       return res
         .status(400)
@@ -44,6 +39,4 @@ async function validateOtpId(req, res, next) {
   }
 }
 
-module.exports = {
-  validateOtpId,
-};
+module.exports = { validateOtpId };

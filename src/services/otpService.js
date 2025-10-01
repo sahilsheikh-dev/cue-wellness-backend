@@ -1,20 +1,36 @@
-// services/otpService.js
 const OtpRequest = require("../models/otpModel");
 const { encrypt, decrypt } = require("../utils/cryptography.util");
 const getId = require("../utils/getId.util");
-const twilio = require("twilio");
 
+// Env / defaults
 const {
   TWILIO_ACCOUNT_SID,
   TWILIO_AUTH_TOKEN,
   TWILIO_VERIFY_SERVICE_SID,
+  TWILIO_PHONE_NUMBER,
   OTP_EXPIRE_MINUTES,
   OTP_MAX_ATTEMPTS,
+  OTP_RESEND_INTERVAL_SECONDS,
+  OTP_MAX_RESENDS,
 } = process.env;
 
-const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 const DEFAULT_EXPIRE_MINUTES = parseInt(OTP_EXPIRE_MINUTES || "10", 10);
 const DEFAULT_MAX_ATTEMPTS = parseInt(OTP_MAX_ATTEMPTS || "5", 10);
+const DEFAULT_RESEND_INTERVAL_MS =
+  parseInt(OTP_RESEND_INTERVAL_SECONDS || "30", 10) * 1000;
+const DEFAULT_MAX_RESENDS = parseInt(OTP_MAX_RESENDS || "5", 10);
+
+let client = null;
+if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
+  const twilio = require("twilio");
+  client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+}
+
+// helper to normalize phone (best-effort). For production use libphonenumber-js/E.164
+function normalizePhone(phone) {
+  if (!phone) return phone;
+  return phone.replace(/\s+/g, "");
+}
 
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -22,50 +38,87 @@ function generateOtp() {
 
 /**
  * Create an OTP record and send OTP.
- * @param {string} phone
+ * @param {string} phoneRaw
  * @param {object} opts - { userType: 'coach', meta: {} }
  * @returns {Object} { otpId: <encrypted> }
  */
-async function createAndSendOtp(phone, opts = {}) {
+async function createAndSendOtp(phoneRaw, opts = {}) {
+  const phone = normalizePhone(phoneRaw);
   const { userType = "client", meta = {} } = opts;
-  if (!phone) throw new Error("Phone number required");
-  if (!userType) throw new Error("userType required");
 
-  const otp = generateOtp();
+  if (!phone) throw new Error("Phone required");
+
+  // throttle: check for very recent send
+  const existingActive = await OtpRequest.findOne({
+    phone,
+    userType,
+    verified: false,
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (existingActive) {
+    const lastSent = existingActive.lastSentAt
+      ? new Date(existingActive.lastSentAt).getTime()
+      : 0;
+    if (Date.now() - lastSent < DEFAULT_RESEND_INTERVAL_MS) {
+      throw new Error("OTP just sent. Please wait a moment before retrying.");
+    }
+    // optional: we could reuse/update existingActive instead of creating new doc
+  }
+
+  const otpPlain = generateOtp();
   const otpId = getId(12);
   const expiresAt = new Date(Date.now() + DEFAULT_EXPIRE_MINUTES * 60 * 1000);
 
-  const record = new OtpRequest({
+  const provider =
+    client && TWILIO_VERIFY_SERVICE_SID
+      ? "twilio"
+      : client && TWILIO_PHONE_NUMBER
+      ? "twilio-sms"
+      : "local";
+
+  const doc = new OtpRequest({
     phone,
     userType,
-    otpEncrypted: encrypt(otp),
+    otpEncrypted: provider === "local" ? encrypt(otpPlain) : undefined,
     otpId,
     maxAttempts: DEFAULT_MAX_ATTEMPTS,
     expiresAt,
+    lastSentAt: new Date(),
+    resendCount: 0,
     meta,
+    provider,
   });
 
-  await record.save();
+  await doc.save();
 
-  // Send via Twilio Verify service if configured, otherwise fallback to messages API
+  // Send via provider or fallback to local SMS
   try {
-    if (TWILIO_VERIFY_SERVICE_SID) {
+    if (provider === "twilio" && client && TWILIO_VERIFY_SERVICE_SID) {
       await client.verify.v2
         .services(TWILIO_VERIFY_SERVICE_SID)
         .verifications.create({ to: phone, channel: "sms" });
-    } else {
+    } else if (provider === "twilio-sms" && client && TWILIO_PHONE_NUMBER) {
       await client.messages.create({
         to: phone,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        body: `Your verification code is ${otp}`,
+        from: TWILIO_PHONE_NUMBER,
+        body: `Your verification code is ${otpPlain}`,
       });
+    } else if (provider === "local") {
+      // No SMS transport configured — keep record but inform caller
+      throw new Error("No SMS provider configured to send OTP");
     }
   } catch (err) {
-    // If Twilio fails, still keep record (admin can inspect) and throw to caller
-    throw new Error("Failed to send OTP: " + err.message);
+    // If sending fails we delete the record to avoid orphaned unverified entries
+    try {
+      await OtpRequest.findByIdAndDelete(doc._id);
+    } catch (e) {
+      /* ignore */
+    }
+    throw new Error("Failed to send OTP: " + (err.message || String(err)));
   }
 
-  return { otpId: encrypt(otpId) }; // return encrypted otpId to client
+  return { otpId: encrypt(otpId) };
 }
 
 /**
@@ -76,12 +129,8 @@ async function createAndSendOtp(phone, opts = {}) {
 async function verifyOtp(otpIdEncrypted, otp) {
   if (!otpIdEncrypted || !otp) throw new Error("otpId and otp required");
 
-  let otpId;
-  try {
-    otpId = decrypt(otpIdEncrypted);
-  } catch (err) {
-    return { ok: false, reason: "invalid_otpId" };
-  }
+  const otpId = decrypt(otpIdEncrypted);
+  if (!otpId) return { ok: false, reason: "invalid_otpId" };
 
   const record = await OtpRequest.findOne({ otpId });
   if (!record) return { ok: false, reason: "invalid_otpId" };
@@ -90,8 +139,8 @@ async function verifyOtp(otpIdEncrypted, otp) {
   if (record.attempts >= record.maxAttempts)
     return { ok: false, reason: "max_attempts" };
 
-  // Prefer Twilio Verify service for checking if configured
-  if (TWILIO_VERIFY_SERVICE_SID) {
+  // If Twilio verify used, delegate to provider
+  if (record.provider === "twilio" && client && TWILIO_VERIFY_SERVICE_SID) {
     try {
       const verificationCheck = await client.verify.v2
         .services(TWILIO_VERIFY_SERVICE_SID)
@@ -107,26 +156,25 @@ async function verifyOtp(otpIdEncrypted, otp) {
         return { ok: false, reason: "invalid_code" };
       }
     } catch (err) {
-      // Twilio error — don't leak provider errors
       record.attempts += 1;
       await record.save();
       return { ok: false, reason: "invalid_code" };
     }
   }
 
-  // Fallback: local verification using encrypted otp stored
-  try {
-    const storedOtp = decrypt(record.otpEncrypted);
-    if (storedOtp === otp) {
-      record.verified = true;
-      await record.save();
-      return { ok: true, record };
-    } else {
-      record.attempts += 1;
-      await record.save();
-      return { ok: false, reason: "invalid_code" };
-    }
-  } catch (err) {
+  // Fallback: local decrypt and compare
+  const storedOtp = decrypt(record.otpEncrypted);
+  if (!storedOtp) {
+    record.attempts += 1;
+    await record.save();
+    return { ok: false, reason: "invalid_code" };
+  }
+
+  if (storedOtp === otp) {
+    record.verified = true;
+    await record.save();
+    return { ok: true, record };
+  } else {
     record.attempts += 1;
     await record.save();
     return { ok: false, reason: "invalid_code" };
@@ -140,19 +188,25 @@ async function verifyOtp(otpIdEncrypted, otp) {
 async function resendOtp(otpIdEncrypted) {
   if (!otpIdEncrypted) throw new Error("otpId required");
 
-  let otpId;
-  try {
-    otpId = decrypt(otpIdEncrypted);
-  } catch (err) {
-    return { ok: false, reason: "invalid_otpId" };
-  }
+  const otpId = decrypt(otpIdEncrypted);
+  if (!otpId) return { ok: false, reason: "invalid_otpId" };
 
   const record = await OtpRequest.findOne({ otpId });
   if (!record) return { ok: false, reason: "invalid_otpId" };
   if (record.verified) return { ok: false, reason: "already_verified" };
 
+  const lastSent = record.lastSentAt
+    ? new Date(record.lastSentAt).getTime()
+    : 0;
+  if (Date.now() - lastSent < DEFAULT_RESEND_INTERVAL_MS) {
+    return { ok: false, reason: "too_many_requests" };
+  }
+  if ((record.resendCount || 0) >= DEFAULT_MAX_RESENDS) {
+    return { ok: false, reason: "resend_limit_reached" };
+  }
+
+  // if expired, create new OTP (preserving userType)
   if (record.expiresAt < new Date()) {
-    // expired: create a fresh OTP for same phone & userType
     return await createAndSendOtp(record.phone, {
       userType: record.userType,
       meta: record.meta,
@@ -161,25 +215,36 @@ async function resendOtp(otpIdEncrypted) {
 
   // otherwise update OTP in-place
   const newOtp = generateOtp();
-  record.otpEncrypted = encrypt(newOtp);
+  record.otpEncrypted =
+    record.provider === "local" ? encrypt(newOtp) : record.otpEncrypted;
   record.attempts = 0;
   record.expiresAt = new Date(Date.now() + DEFAULT_EXPIRE_MINUTES * 60 * 1000);
+  record.lastSentAt = new Date();
+  record.resendCount = (record.resendCount || 0) + 1;
   await record.save();
 
   try {
-    if (TWILIO_VERIFY_SERVICE_SID) {
+    if (record.provider === "twilio" && client && TWILIO_VERIFY_SERVICE_SID) {
       await client.verify.v2
         .services(TWILIO_VERIFY_SERVICE_SID)
         .verifications.create({ to: record.phone, channel: "sms" });
-    } else {
+    } else if (
+      record.provider === "twilio-sms" &&
+      client &&
+      TWILIO_PHONE_NUMBER
+    ) {
       await client.messages.create({
         to: record.phone,
-        from: process.env.TWILIO_PHONE_NUMBER,
+        from: TWILIO_PHONE_NUMBER,
         body: `Your verification code is ${newOtp}`,
       });
+    } else if (record.provider === "local") {
+      throw new Error("No SMS provider configured to send OTP");
+    } else {
+      throw new Error("No SMS provider configured");
     }
   } catch (err) {
-    throw new Error("Failed to resend OTP: " + err.message);
+    throw new Error("Failed to resend OTP: " + (err.message || String(err)));
   }
 
   return { ok: true };
