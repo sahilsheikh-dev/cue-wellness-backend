@@ -1122,6 +1122,7 @@ module.exports = {
   coachAgreementTerms,
   verifyOtp,
   login,
+  refreshToken,
   logout,
   getPersonalInfo,
   updateProfile,

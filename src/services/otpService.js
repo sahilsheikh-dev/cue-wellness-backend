@@ -30,7 +30,15 @@ if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN) {
 // helper to normalize phone (best-effort). For production use libphonenumber-js/E.164
 function normalizePhone(phone) {
   if (!phone) return phone;
-  return phone.replace(/\s+/g, "");
+  const trimmed = phone.replace(/\s+/g, "");
+
+  // Basic E.164 validation
+  const e164 = /^\+[1-9]\d{6,14}$/;
+  if (!e164.test(trimmed)) {
+    throw new Error(`Invalid phone number format: ${trimmed}`);
+  }
+
+  return trimmed;
 }
 
 function generateOtp() {

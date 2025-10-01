@@ -535,24 +535,35 @@ async function isMobileAvailable(mobile) {
 
 function formatCoach(doc) {
   if (!doc) return null;
-  const d = doc.toObject ? doc.toObject() : JSON.parse(JSON.stringify(doc));
+  let d;
+  try {
+    d = doc.toObject ? doc.toObject() : { ...doc }; // safer
+  } catch (e) {
+    console.error("formatCoach error:", e.message);
+    return null;
+  }
+
   delete d.password;
-  // Do not return hashed refresh tokens
   if (d.refreshTokens) delete d.refreshTokens;
-  if (d.profilePicture && d.profilePicture.indexOf(BASE_URL) === -1)
+
+  if (d.profilePicture && d.profilePicture.indexOf(BASE_URL) === -1) {
     d.profilePicture = publicUrlFor(d.profilePicture);
+  }
+
   if (Array.isArray(d.certificates)) {
     d.certificates = d.certificates.map((c) => ({
       ...c,
       path: publicUrlFor(c.path),
     }));
   }
+
   if (Array.isArray(d.workAssets)) {
     d.workAssets = d.workAssets.map((w) => ({
       ...w,
       path: publicUrlFor(w.path),
     }));
   }
+
   return d;
 }
 
