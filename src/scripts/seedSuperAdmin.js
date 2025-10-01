@@ -116,17 +116,16 @@ async function main() {
 
 main();
 
-// $ export REMOTE_DB_USER=cuewellness
+// export REMOTE_DB_USER=cuewellness
 // export REMOTE_DB_PASS=Cuewellness00700
 // export REMOTE_DB_IP=97.74.94.169
 // export REMOTE_DB_NAME=cueWellness-stagging
-
-// node src/scripts/seedSuperAdmin.js 
+// node src/scripts/seedSuperAdmin.js
 // Connected to DB.
 // Name: ✅ Connected to MongoDB (remote)
-// Sahil Sheikh
-// Mobile (with country code, e.g. +91...): +918766509387
-// Email (optional): sahilsheikh.dev@gmail.com
-// Password (input hidden): ************
+// Super Admin
+// Mobile (with country code, e.g. +91...): +919999999999
+// Email (optional): support@cuewellness.net
+// Password (input hidden): Password@123
 // ✅ Super admin created successfully.
-// Admin id: 68dcb1280bda4df29766f91a
+// Admin id: 68dcec63971c3dc845e0a6e2

@@ -1,13 +1,32 @@
+// src/routes/activities/activitiesRoutes.js
 const express = require("express");
 const router = express.Router();
-const activityController = require("../../controllers/actvities/activitiesController");
-const verifyCoach = require("../../middlewares/coach/verifyCoach");
-const verifyAdmin = require("../../middlewares/admin/auth.middleware");
-const permissions = require("../../configs/permissionConfig");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
-router.post("/add-activities",verifyAdmin(), activityController.addActivityOrSubActivity);
+const activityController = require("../../controllers/activities/activitiesController");
+const protectAdmin = require("../../middlewares/admin/auth.middleware");
+const permissions = require("../../configs/permissionConfig");
+
+// Public routes (view)
+router.get("/", activityController.listRoots);
+router.get("/:parentId", activityController.listChildren);
+
+// Admin routes (protected by admin permission)
+router.post(
+  "/admin/add",
+  protectAdmin(permissions["activities:add"]),
+  activityController.addActivity
+);
+
+router.put(
+  "/admin/update/:id",
+  protectAdmin(permissions["activities:update"]),
+  activityController.updateActivity
+);
+
+router.delete(
+  "/admin/delete/:id",
+  protectAdmin(permissions["activities:delete"]),
+  activityController.deleteActivity
+);
 
 module.exports = router;

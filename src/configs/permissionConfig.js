@@ -9,4 +9,9 @@ module.exports = {
   "coach:update": "manage-coach:edit",
   "coach:delete": "manage-coach:delete",
   "coach:changeStatus": "manage-coach:change-status",
+  "activities:add": "manage-activities:add",
+  "activities:list": "manage-activities:view",
+  "activities:get": "manage-activities:view",
+  "activities:update": "manage-activities:edit",
+  "activities:delete": "manage-activities:delete",
 };
