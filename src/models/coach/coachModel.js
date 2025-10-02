@@ -24,14 +24,35 @@ const WorkAssetSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const CategorySchema = new mongoose.Schema(
-  {
-    id: { type: String, required: true }, // referential id from frontend/category list
-    levelOfExpertise: [{ type: String }],
-    session: { type: mongoose.Schema.Types.Mixed }, // store flexible payload
+const BookingDiscountSchema = new mongoose.Schema({
+  min: { type: Number, required: true },
+  max: { type: Number, required: true },
+  pct: { type: Number, required: true },
+});
+
+const SessionSchema = new mongoose.Schema({
+  date: { type: String, required: true }, // ISO yyyy-mm-dd
+  start: { type: String, required: true }, // "10:00 AM"
+  end: { type: String, required: true },
+  price: { type: Number, required: true },
+});
+
+const SessionBlockSchema = new mongoose.Schema({
+  sessions: [SessionSchema],
+  bulkDiscounts: [BookingDiscountSchema],
+});
+
+const BookingDetailsSchema = new mongoose.Schema({
+  acceptedClientLevels: [String],
+  virtual: {
+    private: SessionBlockSchema,
+    group: SessionBlockSchema,
   },
-  { timestamps: true }
-);
+  inPerson: {
+    private: SessionBlockSchema,
+    group: SessionBlockSchema,
+  },
+});
 
 const CoachSchema = new mongoose.Schema(
   {
@@ -86,8 +107,7 @@ const CoachSchema = new mongoose.Schema(
     agree_experience: { type: Boolean, default: false },
     agree_refund: { type: Boolean, default: false },
 
-    // --- NEW: category pricing storage ---
-    category: [CategorySchema],
+    bookingDetails: BookingDetailsSchema,
   },
   { timestamps: true }
 );

@@ -66,22 +66,26 @@ async function uploadCertificateSingle(coachId, certificateId, file) {
     existing.deleteOne();
 
     // delete file from disk if it exists in uploads folder
-  if (oldPath) {
-    try {
-      const filename = path.basename(oldPath); // safer than split
-      const filePath = path.join(UPLOADS_BASE_PATH, CERTIFICATES_PATH, filename);
+    if (oldPath) {
+      try {
+        const filename = path.basename(oldPath); // safer than split
+        const filePath = path.join(
+          UPLOADS_BASE_PATH,
+          CERTIFICATES_PATH,
+          filename
+        );
 
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log(`Deleted certificate file: ${filePath}`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted certificate file: ${filePath}`);
+        }
+      } catch (err) {
+        console.warn(
+          "Failed to delete certificate file from disk:",
+          err.message || err
+        );
       }
-    } catch (err) {
-      console.warn(
-        "Failed to delete certificate file from disk:",
-        err.message || err
-      );
     }
-  }
 
     await coach.save();
     return {
@@ -153,22 +157,26 @@ async function uploadWorkAssetSingle(coachId, assetId, file) {
     existing.deleteOne();
 
     // delete file from disk if it exists in uploads folder
-  if (oldPath) {
-    try {
-      const filename = path.basename(oldPath); // safer than split
-      const filePath = path.join(UPLOADS_BASE_PATH, WORK_ASSETS_PATH, filename);
+    if (oldPath) {
+      try {
+        const filename = path.basename(oldPath); // safer than split
+        const filePath = path.join(
+          UPLOADS_BASE_PATH,
+          WORK_ASSETS_PATH,
+          filename
+        );
 
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log(`Deleted work asset file: ${filePath}`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted work asset file: ${filePath}`);
+        }
+      } catch (err) {
+        console.warn(
+          "Failed to delete work asset file from disk:",
+          err.message || err
+        );
       }
-    } catch (err) {
-      console.warn(
-        "Failed to delete work asset file from disk:",
-        err.message || err
-      );
     }
-  }
 
     await coach.save();
     return {
@@ -535,40 +543,14 @@ async function saveAgreement(id, title, contentArr) {
 }
 
 // Save session slots for a coach and a specific category and sessionKey.
-async function saveSessionSlots(id, categoryId, sessionKey, level, payload) {
-  const coach = await Coach.findById(id);
+async function saveBookingDetails(coachId, bookingDetails) {
+  const coach = await Coach.findById(coachId);
   if (!coach) return null;
 
-  coach.category = coach.category || [];
-
-  // find category by id (string comparison). if not found create one
-  let catIndex = coach.category.findIndex(
-    (c) => String(c.id) === String(categoryId)
-  );
-
-  if (catIndex === -1) {
-    // create new category entry
-    coach.category.push({
-      id: categoryId,
-      levelOfExpertise: [],
-      session: {},
-    });
-    catIndex = coach.category.length - 1;
-  }
-
-  // ensure levelOfExpertise array exists and add 'level' if provided
-  coach.category[catIndex].levelOfExpertise =
-    coach.category[catIndex].levelOfExpertise || [];
-
-  if (level && !coach.category[catIndex].levelOfExpertise.includes(level)) {
-    coach.category[catIndex].levelOfExpertise.push(level);
-  }
-
-  // store payload under sessionKey - overwrite intentionally (frontend sends full payload)
-  coach.category[catIndex].session = coach.category[catIndex].session || {};
-  coach.category[catIndex].session[sessionKey] = payload;
-
+  // overwrite entire bookingDetails (frontend always sends full object)
+  coach.bookingDetails = bookingDetails;
   await coach.save();
+
   return formatCoach(coach);
 }
 
@@ -660,7 +642,6 @@ async function deleteProfilePicture(id) {
 
   return formatCoach(coach);
 }
-
 
 async function setWorkAssets(coachId, indexes, files) {
   const coach = await Coach.findById(coachId);
@@ -1092,7 +1073,6 @@ module.exports = {
   toggleBlockStatus,
   addCertificates,
   saveAgreement,
-  saveSessionSlots,
   toggleLikeActivity,
   toggleSaveCoach,
   setProfilePicture,
@@ -1109,6 +1089,6 @@ module.exports = {
   forgetPasswordService,
   uploadCertificateSingle,
   uploadWorkAssetSingle,
-  saveSessionSlots,
+  saveBookingDetails,
   getSessionSlots,
 };

@@ -467,7 +467,9 @@ async function uploadCertificates(req, res) {
   try {
     const coachId = req.body.coachId;
     if (!coachId)
-      return res.status(401).json({message: "Coach id required", error:"Unauthorized" });
+      return res
+        .status(401)
+        .json({ message: "Coach id required", error: "Unauthorized" });
 
     // Allow certificateId to be passed either as form field 'certificateId' or body
     const certificateId = req.body.certificateId || null;
@@ -529,50 +531,36 @@ async function saveAgreement(req, res) {
 async function savePricingSlots(req, res) {
   try {
     const coachId = req.coach?._id || req.body.coachId;
-    if (!coachId)
+    if (!coachId) {
       return res.status(401).json({ ok: false, message: "Unauthorized" });
+    }
 
-    const { categoryId, sessionKey, level, payload } = req.body;
-
-    if (!categoryId || !sessionKey || !payload) {
+    const { bookingDetails } = req.body;
+    if (!bookingDetails) {
       return res.status(400).json({
         ok: false,
-        message:
-          "categoryId, sessionKey and payload are required. payload should contain selectedLevels, sessions and discounts.",
+        message: "bookingDetails is required",
       });
     }
 
-    // basic structural validation
-    if (
-      typeof payload !== "object" ||
-      (!payload.sessions && !payload.selectedLevels && !payload.discounts)
-    ) {
-      return res.status(400).json({
-        ok: false,
-        message:
-          "Invalid payload shape. Expected payload to contain sessions and/or discounts and selectedLevels.",
-      });
-    }
-
-    const updated = await coachService.saveSessionSlots(
+    const updated = await coachService.saveBookingDetails(
       coachId,
-      categoryId,
-      sessionKey,
-      level,
-      payload
+      bookingDetails
     );
-    if (!updated)
+    if (!updated) {
       return res.status(404).json({ ok: false, message: "Coach not found" });
+    }
 
-    return res
-      .status(200)
-      .json({ ok: true, message: "Pricing slots saved", data: updated });
+    return res.status(200).json({
+      ok: true,
+      message: "Booking details saved",
+      data: updated,
+    });
   } catch (err) {
     await logError({
       name: "savePricingSlots_exception",
       file: "controllers/coach/coachController.js",
-      description: err && err.message ? err.message : String(err),
-      stack: err && err.stack ? err.stack : undefined,
+      description: err.message || String(err),
       section: "coach",
       priority: "high",
     });
@@ -782,7 +770,9 @@ async function uploadProfilePicture(req, res) {
   try {
     const coachId = req.body.coachId;
     if (!coachId)
-      return res.status(401).json({ message: "Coach Id required", error:"Unauthorized" });
+      return res
+        .status(401)
+        .json({ message: "Coach Id required", error: "Unauthorized" });
 
     const file = req.file || null;
     let updated;
@@ -798,12 +788,12 @@ async function uploadProfilePicture(req, res) {
     }
 
     if (!updated)
-      return res.status(404).json({ message: "Coach not found", error:"Not found"});
+      return res
+        .status(404)
+        .json({ message: "Coach not found", error: "Not found" });
 
     return res.status(200).json({
-      message: file
-        ? "Profile picture uploaded"
-        : "Profile picture deleted",
+      message: file ? "Profile picture uploaded" : "Profile picture deleted",
       data: updated.profilePicture,
     });
   } catch (err) {
@@ -821,7 +811,6 @@ async function uploadProfilePicture(req, res) {
   }
 }
 
-
 /**
  * Upload / update / delete a work asset
  * - form-data: file (single, optional), assetId (optional)
@@ -833,7 +822,9 @@ async function uploadWorkAssets(req, res) {
   try {
     const coachId = req.body.coachId;
     if (!coachId)
-      return res.status(401).json({message: "Coach id required", error:"Unauthorized" });
+      return res
+        .status(401)
+        .json({ message: "Coach id required", error: "Unauthorized" });
 
     const assetId = req.body.assetId || null;
     const file = req.file || null;
