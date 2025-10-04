@@ -1055,6 +1055,44 @@ async function isMobileAvailable(mobile) {
   return !coach;
 }
 
+/**
+ * Get coaches by activityId
+ * @param {String} activityId
+ * @returns {Promise<Array>}
+ */
+async function getCoachesByActivityService(activityId) {
+  try {
+    const coaches = await Coach.find(
+      { my_activities: activityId },
+      "_id name profilePicture"
+    );
+    return coaches;
+  } catch (error) {
+    console.error("getCoachesByActivityService error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get a single coach by ID (excluding sensitive fields)
+ * @param {String} coachId
+ * @returns {Promise<Object|null>}
+ */
+async function getCoachByIdService(coachId) {
+  try {
+    const coach = await Coach.findById(coachId)
+      // Exclude sensitive fields
+      .select(
+        "-password -token -refreshTokens -__v"
+      );
+
+    return coach;
+  } catch (error) {
+    console.error("getCoachByIdService error:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   saveRefreshToken,
   revokeRefreshToken,
@@ -1091,4 +1129,6 @@ module.exports = {
   uploadWorkAssetSingle,
   saveBookingDetails,
   getSessionSlots,
+  getCoachesByActivityService,
+  getCoachByIdService
 };
