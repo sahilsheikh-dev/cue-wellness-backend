@@ -1125,6 +1125,7 @@ const forgetPassword = async (req, res) => {
       .status(200)
       .json({ ok: true, message: "Password updated successfully" });
   } catch (err) {
+    console.error("forgetPassword error:", err);
     await logError({
       name: "forgetPassword_exception",
       file: "controllers/coach/coachController.js",
@@ -1133,12 +1134,94 @@ const forgetPassword = async (req, res) => {
       section: "coach",
       priority: "medium",
     });
-    console.error("forgetPassword error:", err);
     return res
       .status(500)
       .json({ ok: false, message: "Internal Server Error" });
   }
 };
+
+async function getCoachesByActivityId(req, res) {
+  try {
+    const { activityId } = req.params;
+    if (!activityId) {
+      return res.status(400).send({
+        message: "Activity ID is required",
+      });
+    }
+    const coaches = await coachService.getCoachesByActivityService(activityId);
+    if (coaches.length === 0) {
+      return res.status(404).send({
+        message: "No coaches found for this activity",
+        data: [],
+      });
+    }
+
+    // Format response so _id becomes id
+    const finalCoachesList = coaches.map((c) => ({
+      id: c._id,
+      name: c.name,
+      profilePicture: c.profilePicture || null,
+    }));
+
+    return res.status(200).send({
+      message: "Coaches fetched successfully",
+      data: finalCoachesList,
+    });
+  } catch (err) {
+    console.error("getCoachesByActivity error:", err);
+     await logError({
+      name: "getCoachByActivityId_exception",
+      file: "controllers/coach/coachController.js",
+      description: err && err.message ? err.message : String(err),
+      stack: err && err.stack ? err.stack : undefined,
+      section: "coach",
+      priority: "medium",
+    });
+    return res.status(500).send({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
+
+async function getCoachById(req, res) {
+  try {
+    const { coachId } = req.params;
+
+    if (!coachId) {
+      return res.status(400).send({
+        message: "Coach ID is required",
+      });
+    }
+
+    const coach = await coachService.getCoachByIdService(coachId);
+
+    if (!coach) {
+      return res.status(404).send({
+        message: "Coach not found",
+      });
+    }
+
+    return res.status(200).send({
+      message: "Coach fetched successfully",
+      data: coach,
+    });
+  } catch (err) {
+    console.error("getCoachById error:", err);
+    await logError({
+      name: "getCoachById_exception",
+      file: "controllers/coach/coachController.js",
+      description: err && err.message ? err.message : String(err),
+      stack: err && err.stack ? err.stack : undefined,
+      section: "coach",
+      priority: "medium",
+    });
+    return res.status(500).send({
+      message: "Internal Server Error",
+      error: err.message,
+    });
+  }
+}
 
 module.exports = {
   signup,
@@ -1170,4 +1253,6 @@ module.exports = {
   updatePassword,
   checkMobileAvailability,
   forgetPassword,
+  getCoachesByActivityId,
+  getCoachById
 };

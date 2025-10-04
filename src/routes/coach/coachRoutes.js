@@ -27,6 +27,8 @@ router.post("/logout-all", verifyCoach(), async (req, res) => {
 router.post("/check-cookie", coachController.checkCookie);
 router.post("/check-mobile", coachController.checkMobileAvailability);
 router.put("/forget-password", coachController.forgetPassword);
+router.get("/coachByActivityId/:activityId", coachController.getCoachesByActivityId)
+router.get("/coachById/:coachId", coachController.getCoachById)
 
 // Authenticated coach routes
 router.get("/me", verifyCoach(), coachController.getPersonalInfo);
